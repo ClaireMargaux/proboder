@@ -4,6 +4,8 @@
 library(Matrix)
 
 #' @param lengthscale
+#' @param recovery_rate
+#' @param fatality_rate
 #' @return 
 #' 
 
