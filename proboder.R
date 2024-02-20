@@ -43,9 +43,9 @@ infections_14_days_ago <- bern_data_cases %>%
   mutate(infections_14_days_ago = lag(entries, 14, default = 0)) %>%  # Assuming 'entries' represents new cases per day
   select(date, infections_14_days_ago) 
 
-recovered_per_day <- infections_14_days_ago %>%
-  mutate(recovered_per_day = pmax(0, infections_14_days_ago - death_per_day$death_per_day)) %>%
-  select(date, recovered_per_day)
+#'recovered_per_day <- infections_14_days_ago %>%
+#'mutate(recovered_per_day = pmax(0, infections_14_days_ago - death_per_day$death_per_day)) %>%
+#'select(date, recovered_per_day)
 
 dates <- seq(as.Date("2020-02-24"), as.Date("2023-01-01"), by = "day")
 susceptibles_vector <- numeric(length(dates))
@@ -62,7 +62,7 @@ for (i in 2:length(dates)) {
 susceptibles_per_day <- data.frame(date = dates, susceptibles_per_day = susceptibles_vector)
 
 observations <- left_join(susceptibles_per_day, cases_per_day, by = "date") %>%
-  left_join(recovered_per_day, by = "date") %>%
+  #left_join(recovered_per_day, by = "date") %>%
   left_join(death_per_day, by = "date")
 
 #####################################
@@ -70,6 +70,9 @@ observations <- left_join(susceptibles_per_day, cases_per_day, by = "date") %>%
 #####################################
 
 # Initialization.
+X <- matrix(data= c(as.numeric(observations[1,2]),rep(0,11)),nrow = 12, ncol = 1)
+U <- 0
+
 library(Matrix)
 
 #' @param recovery_rate
@@ -90,6 +93,9 @@ F_X <- sparseMatrix(i = 1:8, j = 5:12, x = 1, dims = c(12,12))
 # Dispersion matrices.
 L_U <- matrix(c(0,1), nrow = 2, ncol = 1)
 L_X <- sparseMatrix(i = 9:12, j = 1:4, x = 1, dims = c(12,4))
+
+# Observation noise.
+R <- diag(1, nrow = 3, ncol = 3)
 
 # Link function.
 sigmoid <- function(z){
