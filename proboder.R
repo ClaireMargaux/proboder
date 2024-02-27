@@ -5,7 +5,7 @@
 ############# DATA #############
 ################################
 
-# Total population (2021).
+# Total population (Bern, 2021).
 population <-  1047473
 
 # Import dataset.
@@ -38,10 +38,10 @@ death_per_day <- bern_data_death %>%
   summarize(death_per_day = sum(entries, na.rm = TRUE))
 death_per_day <- mutate(death_per_day, date = as.Date(date))
 
-infections_14_days_ago <- bern_data_cases %>%
-  mutate(date = as.Date(datum)) %>%
-  mutate(infections_14_days_ago = lag(entries, 14, default = 0)) %>%  # Assuming 'entries' represents new cases per day
-  select(date, infections_14_days_ago) 
+#'infections_14_days_ago <- bern_data_cases %>%
+#'mutate(date = as.Date(datum)) %>%
+#'mutate(infections_14_days_ago = lag(entries, 14, default = 0)) %>%
+#'select(date, infections_14_days_ago) 
 
 #'recovered_per_day <- infections_14_days_ago %>%
 #'mutate(recovered_per_day = pmax(0, infections_14_days_ago - death_per_day$death_per_day)) %>%
@@ -72,22 +72,23 @@ observations <- left_join(susceptibles_per_day, cases_per_day, by = "date") %>%
 # Initialization.
 X <- matrix(data= c(as.numeric(observations[1,2]),rep(0,11)),nrow = 12, ncol = 1)
 U <- 0
+P <- population
 
 library(Matrix)
+library(numDeriv)
 
 #' @param recovery_rate
 #' @param fatality_rate
-#' @param lengthscale
-#' @return 
-#' 
+#' @param length_scale
+#' @return contact_rate
 
 # Fixed parameters.
-recovery_rate <- 0.06
-fatality_rate <- 0.002
-lengthscale <- 14
+gamma <- 0.06 # recovery_rate
+eta <- 0.002 # fatality_rate
+l <- 14 # length_scale
 
 # Drift matrices.
-F_U <- matrix(c(0,-(sqrt(3)/lengthscale)^2,1,-2*sqrt(3)/lengthscale), nrow = 2, ncol = 2)
+F_U <- matrix(c(0,-(sqrt(3)/l)^2,1,-2*sqrt(3)/l), nrow = 2, ncol = 2)
 F_X <- sparseMatrix(i = 1:8, j = 5:12, x = 1, dims = c(12,12))
   
 # Dispersion matrices.
@@ -102,6 +103,60 @@ sigmoid <- function(z){
   return(1/(1+exp(-z)))
 }
 
+# ODE.
+f <- function(X0,U){
+  # Arguments:
+  #   arg1: X, matrix(nrow=4, ncol=1), solution of the ODE
+  #   arg2: U, numeric with values in [0,1], latent parameter of the ODE
+  #   arg3: P, integer, total population
+  #   arg4: gamma, numeric, recovery rate
+  #   arg5: eta, numeric, fatality rate
+  #
+  # Returns:
+  #   output: sol, numeric, evaluation of the ODE f, vector of size 4
+  
+  S <- X0[1]
+  I <- X0[2]
+  R <- X0[3]
+  D <- X0[4]
+  beta <- U
+  
+  sol <- c(
+    -beta*S*I/P,
+    beta*S*I/P - gamma*I - eta*I,
+    gamma*I,
+    eta*I
+  )
+  
+  return(sol)
+}
+
+# Measurement model.
+h <- function(X,U){
+  # Arguments:
+  #   arg1: X, matrix(nrow=12, ncol=1), solution of the ODE and its 2 first derivatives
+  #   arg2: U, numeric, latent parameter of the ODE
+  #
+  # Returns:
+  #   output: evaluation of the measurement model h, matrix(nrow=4, ncol=1)
+  
+  U <- sigmoid(U) # rescaling of U to [0,1]
+  
+  derivative <- X[5:8]
+  ODE <- f(X[1:4],U)
+  
+  sol <- matrix(derivative - ODE, nrow = 4, ncol = 1)
+  
+  return(sol)
+}
+
+# Jacobian.
+jacobian_matrix <- function(X,U){
+  h1 <- function(X) h(X,U=U); h2 <- function(U) h(X=X,U)
+  out <- cbind(jacobian(h1, x = X),jacobian(h2, x = U))
+  return(out)
+}
+  
 # Prediction step.
 
 
