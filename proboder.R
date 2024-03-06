@@ -9,8 +9,13 @@ library(HETTMO)
 params_unstratified = set_parameters()
 params_unstratified$p_detect1 <- 1
 params_unstratified$p_detect2 <- 1
+P <- params_unstratified$popsize
 simulate <- simulate_data(params = params_unstratified, ts = 1:45)
 I <- simulate[[1]]
+S <- rep(0,length(I))
+for (i in 1:length(I)){
+  S[i] <- P - sum(I[1:i])
+}
 R <- simulate[[6]]
 real_beta <- simulate[[3]]
 
@@ -23,8 +28,16 @@ population <-  1047473
 
 # Import dataset.
 setwd("~/Nextcloud/Documents/Mathe/HS23/Master thesis/data_covid_dashboard/sources-csv/data")
-csv_data_cases <- read.csv(file = "COVID19Cases_geoRegion.csv")
-csv_data_death <- read.csv(file = "COVID19Death_geoRegion.csv")
+
+daily_or_weekly <- 'weekly' # choose either 'daily' or 'weekly'
+
+if (daily_or_weekly == 'daily'){
+  csv_data_cases <- read.csv(file = "COVID19Cases_geoRegion.csv")
+  csv_data_death <- read.csv(file = "COVID19Death_geoRegion.csv")
+} else {
+  csv_data_cases <- read.csv(file = "COVID19Cases_geoRegion_w.csv")
+  csv_data_death <- read.csv(file = "COVID19Death_geoRegion_w.csv")
+}
 
 #'library(rjson)
 #'library(jsonlite)
@@ -41,17 +54,21 @@ data_cases <- csv_data_cases %>%
 data_death <- csv_data_death %>%
   filter(geoRegion == region)
 
-cases_per_day <- data_cases %>%
+cases <- data_cases %>%
   rename(date = datum) %>%
   group_by(date) %>%
-  summarize(cases_per_day = sum(entries, na.rm = TRUE))
-cases_per_day <- mutate(cases_per_day, date = as.Date(date))
+  summarize(cases = sum(entries, na.rm = TRUE))
+if (daily_or_weekly == 'daily'){
+  cases <- mutate(cases, date = as.Date(date))
+}
 
-death_per_day <- data_death %>%
+deaths <- data_death %>%
   rename(date = datum) %>%
   group_by(date) %>%
-  summarize(death_per_day = sum(entries, na.rm = TRUE))
-death_per_day <- mutate(death_per_day, date = as.Date(date))
+  summarize(deaths = sum(entries, na.rm = TRUE))
+if (daily_or_weekly == 'daily'){
+  deaths <- mutate(deaths, date = as.Date(date))
+}
 
 #' infections_14_days_ago <- bern_data_cases %>%
 #' mutate(date = as.Date(datum)) %>%
@@ -59,16 +76,21 @@ death_per_day <- mutate(death_per_day, date = as.Date(date))
 #' select(date, infections_14_days_ago) 
 
 #' recovered_per_day <- infections_14_days_ago %>%
-#' mutate(recovered_per_day = pmax(0, infections_14_days_ago - death_per_day$death_per_day)) %>%
+#' mutate(recovered_per_day = pmax(0, infections_14_days_ago - deaths$deaths)) %>%
 #' select(date, recovered_per_day)
 
-dates <- seq(as.Date("2020-02-24"), as.Date("2023-01-01"), by = "day")
+if (daily_or_weekly == 'daily'){
+  dates <- seq(as.Date("2020-02-24"), as.Date("2023-01-01"), by = "day")
+} else {
+  dates <- cases$date
+}
+
 susceptibles_vector <- numeric(length(dates))
 susceptibles_vector[1] <- population
 for (i in 2:length(dates)) {
-  daily_cases <- filter(cases_per_day, date == as.character(dates[i]))
+  daily_cases <- filter(cases, date == as.character(dates[i]))
   if (nrow(daily_cases) > 0) {
-    daily_cases <- daily_cases$cases_per_day[1]
+    daily_cases <- daily_cases$cases[1]
     susceptibles_vector[i] <- susceptibles_vector[i-1] - daily_cases
   } else {
     susceptibles_vector[i] <- susceptibles_vector[i-1]
@@ -76,9 +98,10 @@ for (i in 2:length(dates)) {
 }
 susceptibles_per_day <- data.frame(date = dates, susceptibles_per_day = susceptibles_vector)
 
-observations <- left_join(susceptibles_per_day, cases_per_day, by = "date") %>%
+observations <- left_join(susceptibles_per_day, cases, by = "date") %>%
   #left_join(recovered_per_day, by = "date") %>%
-  left_join(death_per_day, by = "date")
+  left_join(deaths, by = "date")
+observations$deaths[is.na(observations$deaths)] <- 0
 
 n <- nrow(observations) # size of data_grid
 
@@ -131,10 +154,10 @@ sigmoid <- function(z){
 }
 
 # ODE.
-f <- function(X0,U,P,gamma,eta){
+f <- function(X0,beta,P,gamma,eta){
   # Arguments:
-  #   arg1: X, matrix(nrow=4, ncol=1), solution of the ODE
-  #   arg2: U, numeric with values in [0,1], latent parameter of the ODE
+  #   arg1: X0, matrix(nrow=4, ncol=1), solution of the ODE
+  #   arg2: beta, numeric with values in [0,1], latent parameter of the ODE
   #   arg3: P, integer, total population
   #   arg4: gamma, numeric, recovery rate
   #   arg5: eta, numeric, fatality rate
@@ -146,7 +169,6 @@ f <- function(X0,U,P,gamma,eta){
   I <- X0[2]
   R <- X0[3]
   D <- X0[4]
-  beta <- U
   
   S_out <- -beta*S*I/P
   I_out <- beta*S*I/P - gamma*I - eta*I
@@ -162,32 +184,34 @@ f <- function(X0,U,P,gamma,eta){
 h <- function(X,U){
   # Arguments:
   #   arg1: X, matrix(nrow=12, ncol=1), solution of the ODE and its 2 first derivatives
-  #   arg2: U, numeric, latent parameter of the ODE
+  #   arg2: U, matrix(nrow=2, ncol=1), latent parameter of the ODE and it's first derivative
   #
   # Returns:
   #   output: evaluation of the measurement model h, matrix(nrow=4, ncol=1)
   
-  U <- sigmoid(U) # rescaling of U to [0,1]
+  beta <- U[1]
+  beta <- sigmoid(beta) # rescaling of beta to [0,1]
   
-  derivative <- X[5:8]
-  ODE <- f(X[1:4],U)
+  X0 <- X[1:4]
+  X1 <- X[5:8]
+  ODE <- f(X0,beta)
   
-  sol <- matrix(derivative - ODE, nrow = 4, ncol = 1)
+  sol <- matrix(X1 - ODE, nrow = 4, ncol = 1)
   
   return(sol)
 }
 
-# Jacobian using jacobian function.
-#jacobian_matrix <- function(X,U){
-#  h1 <- function(X) h(X,U=U); h2 <- function(U) h(X=X,U)
-#  out <- cbind(jacobian(h1, x = X),jacobian(h2, x = U))
-#  return(out)
-#}
+#' Jacobian using jacobian function.
+#' jacobian_matrix <- function(X,U){
+#'   h1 <- function(X) h(X,U=U); h2 <- function(U) h(X=X,U)
+#'   out <- cbind(jacobian(h1, x = X),jacobian(h2, x = U))
+#'   return(out)
+#' }
 
-# Jacobian 'by hand'
-jacobian_matrix <- function(X0,U,P,gamma,eta){
+# Jacobian 'by hand'.
+jacobian_matrix <- function(X,U,P,gamma,eta){
   # Arguments:
-  #   arg1: X, matrix(nrow=4, ncol=1), solution of the ODE
+  #   arg1: X, matrix(nrow=12, ncol=1), solution of the ODE and its 2 first derivatives
   #   arg2: U, numeric with values in [0,1], latent parameter of the ODE
   #   arg3: P, integer, total population
   #   arg4: gamma, numeric, recovery rate
@@ -195,6 +219,8 @@ jacobian_matrix <- function(X0,U,P,gamma,eta){
   #
   # Returns:
   #   output: matrix(nrow=5, ncol=5), Jacobian of ODE f
+  
+  X0 <- X[1:4]
   
   S <- X0[1]
   I <- X0[2]
