@@ -515,22 +515,24 @@ for (loc in time_grid){
 library(ggplot2)
 
 # Extract relevant data
-U_values_plot <- data.frame(time = time_grid, U_value = U_values[1, ])
-P_U_values_plot <- data.frame(
+U_scaled <- sigmoid(U_values[1,])
+U_plot <- data.frame(time = time_grid, U_value = U_scaled)
+P_plot <- data.frame(
   time = time_grid,
-  ymin = U_values[1, ] - sqrt(P_U_values[1, 1, ]),
-  ymax = U_values[1, ] + sqrt(P_U_values[1, 1, ])
+  ymin = U_scaled - sqrt(P_U_values[1, 1, ]),
+  ymax = U_scaled + sqrt(P_U_values[1, 1, ])
 )
 real_beta_df <- data.frame(time = time_grid, real_beta = real_beta)
 
 # Plotting
 ggplot() +
-  geom_line(data = U_values_plot, aes(x = time, y = U_value, color = "Estimated Contact Rate"), size = 1) +
-  geom_ribbon(data = P_U_values_plot, aes(x = time, ymin = ymin, ymax = ymax), fill = "coral", alpha = 0.5) +
+  geom_line(data = U_plot, aes(x = time, y = U_value, color = "Estimated Contact Rate"), size = 1) +
+  geom_ribbon(data = P_plot, aes(x = time, ymin = ymin, ymax = ymax), fill = "lightgreen", alpha = 0.5) +
   geom_line(data = real_beta_df, aes(x = time, y = real_beta, color = "Real Contact Rate"), linetype = "dashed") +
   labs(x = "Time", y = "Contact rate", title = "Contact rate with Error Area",
        color = "Legend") +  
-  scale_color_manual(values = c("Estimated Contact Rate" = "darkgreen", "Real Contact Rate" = "lightblue"),
+  scale_color_manual(values = c("Estimated Contact Rate" = "darkgreen", "Real Contact Rate" = "lightblue4"),
                      labels = c("Estimated Contact Rate", "Real Contact Rate")) +  # Specify legend labels
+  coord_cartesian(ylim = c(-1, 2)) +
   theme_minimal() +
   theme(legend.position = "top")
