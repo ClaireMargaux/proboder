@@ -9,7 +9,7 @@ library(HETTMO)
 params_unstratified = set_parameters()
 params_unstratified$p_detect1 <- 1
 params_unstratified$p_detect2 <- 1
-P <- params_unstratified$popsize
+population_simulate <- params_unstratified$popsize
 simulate <- simulate_data(params = params_unstratified, ts = 1:45)
 I <- simulate[[1]]
 S <- rep(0,length(I))
@@ -18,6 +18,8 @@ for (i in 1:length(I)){
 }
 R <- simulate[[6]]
 real_beta <- simulate[[3]]
+date <- 1:length(S)
+observations_simulate <- cbind(date,S,I,R)
 
 ################################
 ########## REAL DATA ###########
@@ -88,17 +90,17 @@ if (daily_or_weekly == 'daily'){
 susceptibles_vector <- numeric(length(dates))
 susceptibles_vector[1] <- population
 for (i in 2:length(dates)) {
-  daily_cases <- filter(cases, date == as.character(dates[i]))
-  if (nrow(daily_cases) > 0) {
-    daily_cases <- daily_cases$cases[1]
-    susceptibles_vector[i] <- susceptibles_vector[i-1] - daily_cases
+  cases_by_date <- filter(cases, date == as.character(dates[i]))
+  if (nrow(cases_by_date) > 0) {
+    cases_by_date <- cases_by_date$cases[1]
+    susceptibles_vector[i] <- susceptibles_vector[i-1] - cases_by_date
   } else {
     susceptibles_vector[i] <- susceptibles_vector[i-1]
   }
 }
-susceptibles_per_day <- data.frame(date = dates, susceptibles_per_day = susceptibles_vector)
+susceptibles <- data.frame(date = dates, susceptibles = susceptibles_vector)
 
-observations <- left_join(susceptibles_per_day, cases, by = "date") %>%
+observations <- left_join(susceptibles, cases, by = "date") %>%
   #left_join(recovered_per_day, by = "date") %>%
   left_join(deaths, by = "date")
 observations$deaths[is.na(observations$deaths)] <- 0
@@ -113,40 +115,8 @@ n <- nrow(observations) # size of data_grid
 #' validation_set <- observations[-train_indices, ]
 
 #####################################
-########## INITIALIZATION ###########
+############# FUNCTIONS #############
 #####################################
-
-X <- matrix(data= c(as.numeric(observations[1,2]),rep(0,11)), nrow = 12, ncol = 1)
-U <- matrix(data = c(0,0), nrow = 2)
-P <- population
-
-library(Matrix)
-library(numDeriv)
-library(matrixcalc)
-
-#' @param recovery_rate
-#' @param fatality_rate
-#' @param length_scale
-#' @return contact_rate
-
-# Fixed parameters.
-gamma <- 0.06 # recovery_rate
-eta <- 0.002 # fatality_rate
-l <- 14 # length_scale
-
-# Drift matrices.
-F_U <- matrix(c(0,-(sqrt(3)/l)^2,1,-2*sqrt(3)/l), nrow = 2, ncol = 2)
-F_X <- sparseMatrix(i = 1:8, j = 5:12, x = 1, dims = c(12,12))
-  
-# Dispersion matrices.
-L_U <- matrix(c(0,1), nrow = 2, ncol = 1)
-L_X <- sparseMatrix(i = 9:12, j = 1:4, x = 1, dims = c(12,4))
-
-# Observation matrix.
-H <- sparseMatrix(i = c(1,2,3), j = c(1,2,4), x = 1, dims = c(3,4))
-
-# Observation noise.
-R <- diag(1, nrow = 3, ncol = 3)
 
 # Link function.
 sigmoid <- function(z){
@@ -201,15 +171,15 @@ h <- function(X,U){
   return(sol)
 }
 
-#' Jacobian using jacobian function.
-#' jacobian_matrix <- function(X,U){
-#'   h1 <- function(X) h(X,U=U); h2 <- function(U) h(X=X,U)
-#'   out <- cbind(jacobian(h1, x = X),jacobian(h2, x = U))
-#'   return(out)
-#' }
+#' Jacobian of measurement model using jacobian function.
+jacobian_measurement <- function(X,U){
+  h1 <- function(X) h(X,U=U); h2 <- function(U) h(X=X,U)
+  out <- cbind(jacobian(h1, x = X),jacobian(h2, x = U))
+  return(out)
+}
 
-# Jacobian 'by hand'.
-jacobian_matrix <- function(X,U,P,gamma,eta){
+# Jacobian of f 'by hand'.
+jacobian_U <- function(X,U,P,gamma,eta){
   # Arguments:
   #   arg1: X, matrix(nrow=12, ncol=1), solution of the ODE and its 2 first derivatives
   #   arg2: U, numeric with values in [0,1], latent parameter of the ODE
@@ -218,7 +188,36 @@ jacobian_matrix <- function(X,U,P,gamma,eta){
   #   arg5: eta, numeric, fatality rate
   #
   # Returns:
-  #   output: matrix(nrow=5, ncol=5), Jacobian of ODE f
+  #   output: matrix(nrow=2, ncol=2), Jacobian of ODE f wrt U
+  
+  X0 <- X[1:4]
+  
+  S <- X0[1]
+  I <- X0[2]
+  R <- X0[3]
+  D <- X0[4]
+  beta <- U
+  
+  d_dbeta <- matrix(
+    data=c(-S * I / P, S * I / P, 0, 0),
+    nrow=1, ncol=4
+  )
+  
+  sol <- d_dbeta
+  
+  return(sol)
+}
+
+jacobian_X <- function(X,U,P,gamma,eta){
+  # Arguments:
+  #   arg1: X, matrix(nrow=12, ncol=1), solution of the ODE and its 2 first derivatives
+  #   arg2: U, numeric with values in [0,1], latent parameter of the ODE
+  #   arg3: P, integer, total population
+  #   arg4: gamma, numeric, recovery rate
+  #   arg5: eta, numeric, fatality rate
+  #
+  # Returns:
+  #   output: matrix(nrow=4, ncol=4), Jacobian of ODE f wrt X0
   
   X0 <- X[1:4]
   
@@ -248,12 +247,7 @@ jacobian_matrix <- function(X,U,P,gamma,eta){
     nrow=1, ncol=4
   )
   
-  d_dbeta <- matrix(
-    data=c(-S * I / P, S * I / P, 0, 0),
-    nrow=1, ncol=4
-  )
-    
-  sol <- rbind(d_dS,d_dI,d_dR,d_dD,d_dbeta)
+  sol <- rbind(d_dS,d_dI,d_dR,d_dD)
   
   return(sol)
 }
@@ -319,18 +313,17 @@ prediction_X <- function(m_X,P_X,F_X,L_X){
   return(out)
 }
 
-
 # Update step on tau_OBS.
 update_of_observations <- function(m,P,y,H,R){
   # Arguments:
-  #   arg1: m, vector(nrow=13), predicted mean of U and X
-  #   arg2: P, matrix(nrow=13, ncol=13), predicted covariance of U and X
+  #   arg1: m, vector(nrow=14), predicted mean of U and X
+  #   arg2: P, matrix(nrow=14, ncol=14), predicted covariance of U and X
   #   arg3: y, vector(nrow=y), observations
-  #   arg4: H, matrix(nrow=3, ncol=4), observation matrix
-  #   arg5: R, matrix(nrow=4, ncol=4), observation noise
+  #   arg4: H, matrix(nrow=3, ncol=14), observation matrix
+  #   arg5: R, matrix(nrow=3, ncol=3), observation noise
   #
   # Returns:
-  #   output: vector(ncol=13) and matrix(nrow=13, ncol=13), updated
+  #   output: vector(ncol=14) and matrix(nrow=14, ncol=14), updated
   #           mean and covariances of U and X
   
   v <- y - H %*% m # residual
@@ -346,17 +339,17 @@ update_of_observations <- function(m,P,y,H,R){
 }
 
 # Update step on tau_ODE.
-J <- jacobian_matrix(X,U)
+J <- jacobian_measurement(X,U)
 h <- h(X,U)
 update_of_states <- function(m,P,h,J){
   # Arguments:
-  #   arg1: m, vector(nrow=13), predicted mean of U and X
-  #   arg2: P, matrix(nrow=13, ncol=13), predicted covariance of U and X
+  #   arg1: m, vector(nrow=14), predicted mean of U and X
+  #   arg2: P, matrix(nrow=14, ncol=14), predicted covariance of U and X
   #   arg3, h, vector(nrow=4), measurement model
-  #   arg4: J, matrix(nrow=4, ncol=13), Jacobian of the measurement model
+  #   arg4: J, matrix(nrow=4, ncol=14), Jacobian of the measurement model
   #
   # Returns:
-  #   output: vector(ncol=13) and matrix(nrow=13, ncol=13), updated
+  #   output: vector(ncol=14) and matrix(nrow=14, ncol=14), updated
   #           mean and covariances of U and X
   
   v <- -h # residual
@@ -371,18 +364,96 @@ update_of_states <- function(m,P,h,J){
   return(out)
 }
 
+matrix_P <- function(P_X,P_U){
+  # Arguments:
+  #   arg1: P_X, matrix(nrow=12, ncol=12), predicted covariance of X
+  #   arg2: P_U, matrix(nrow=2, ncol=2), predicted covariance of U
+  #
+  # Returns:
+  #   output: matrix(nrow=14, ncol=14), predicted covariance of X and U
+  
+  P_X <- as.matrix(P_X)
+  P_U <- as.matrix(P_U)
+  
+  nrow_P <- nrow(P_X) + nrow(P_U)
+  ncol_P <- ncol(P_X) + ncol(P_U)
+  P <- matrix(0, nrow = nrow_P, ncol = ncol_P)
+  P[1:nrow(P_X), 1:ncol(P_X)] <- P_X  # Top left corner
+  P[(nrow_P - nrow(P_U) + 1):nrow_P, (ncol_P - ncol(P_U) + 1):ncol_P] <- P_U  # Bottom right corner
+  
+  return(P)
+}
+
+#####################################
+########## INITIALIZATION ###########
+#####################################
+
+# Choice of data (in any case: date-S-I-D data).
+type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data
+if (type == 'simulated'){
+  obs <- observations_simulate
+}else{
+  obs <- observations
+}
+
+# X: solution of SIRD-ODE and its two first derivatives
+X <- c(data= c(obs[1,2],rep(0,11)))
+# U: latent parameter (contact rate) and its first derivative
+U <- c(0,0)
+# P: total population
+if (type == 'simulated'){
+  P <- population_simulate
+}else{
+  P <- population
+}
+
+library(Matrix)
+library(numDeriv)
+library(matrixcalc)
+
+#' @param recovery_rate
+#' @param fatality_rate
+#' @param length_scale
+#' @return contact_rate
+
+# Fixed parameters.
+gamma <- 0.06 # recovery_rate
+eta <- 0.002 # fatality_rate
+l <- 14 # length_scale
+
+# Drift matrices.
+F_U <- matrix(c(0,-(sqrt(3)/l)^2,1,-2*sqrt(3)/l), nrow = 2, ncol = 2)
+F_X <- sparseMatrix(i = 1:8, j = 5:12, x = 1, dims = c(12,12))
+F_X <- as.matrix(F_X)
+
+# Dispersion matrices.
+L_U <- matrix(c(0,1), nrow = 2, ncol = 1)
+L_X <- sparseMatrix(i = 9:12, j = 1:4, x = 1, dims = c(12,4))
+L_X <- as.matrix(L_X)
+
+# Observation matrix (for observation of S,I and D).
+H <- sparseMatrix(i = c(1,2,3), j = c(1,2,4), x = 1, dims = c(3,14))
+H <- as.matrix(H)
+
+# Observation noise.
+R <- matrix(0.001, nrow = 3, ncol = 3)
+
+# Noise of priors.
+P_X <- matrix(0.001, nrow = 12, ncol = 12)
+P_U <- matrix(0.001, nrow = 2, ncol = 2)
+
 #####################################
 ############# ALGORITHM #############
 #####################################
 
 # Data grid.
-data_grid <- observations["date"]
+data_grid <- obs[,'date']
 
 # ODE grid.
-ode_grid <- data_grid # to be modified later
+ode_grid <- data_grid # more points could be added
 
 # Overall time grid.
-time_grid <- merge(data_grid, ode_grid, by="date", all=TRUE)
+time_grid <- sort(unique(c(data_grid, ode_grid)))
 
 # 'Artificial' observations for ODE measurements
 zero_data = rep(x=0, 4)
@@ -390,13 +461,17 @@ zero_data = rep(x=0, 4)
 data_idx <- 0
 ode_idx <- 0
 
-# Arrays to store values of X and U.
-X_values <- matrix(data = NA, nrow = 12, ncol = nrow(time_grid))
-U_values <- matrix(data = NA, nrow = 2, ncol = nrow(time_grid))
+# Arrays to store values of X, P_X and U, P_U.
+X_values <- matrix(data = NA, nrow = 12, ncol = length(time_grid))
+U_values <- matrix(data = NA, nrow = 2, ncol = length(time_grid))
+P_X_values <- array(data = NA, dim = c(12, 12, length(time_grid)))
+P_U_values <- array(data = NA, dim = c(2, 2, length(time_grid)))
 
 for (loc in time_grid){
-  X_values[,loc] <- X
-  U_values[,loc] <- U
+  X_values[,loc] <- as.vector(X)
+  U_values[,loc] <- as.vector(U)
+  P_X_values[,,loc] <- as.matrix(P_X)
+  P_U_values[,,loc] <- as.matrix(P_U)
   
   # Prediction step.
   U <- prediction_U(m_U=U,P_U=P_U,F_U=F_U,L_U=L_U)[[1]]
@@ -405,19 +480,24 @@ for (loc in time_grid){
   P_X <- prediction_X(m_X=X,P_X=P_X,F_X=F_X,L_X=L_X)[[2]]
   
   # Update of observations.
-  if (any(data_grid$date == loc)){
-    (X,P_X,U,P_U) <- update_of_observations(m,P,y,H,R)
-      
+  if (any(data_grid == loc)){
+    m <- c(X,U)
+    P <- matrix_P(P_X,P_U)
+    y <- obs[which(obs[, 1] == loc),2:4]
+    X <- update_of_observations(m,P,y,H,R)[[1]][1:4]
+    U <- update_of_observations(m,P,y,H,R)[[1]][5:6]
+    P_X <- update_of_observations(m,P,y,H,R)[[2]][1:12,1:12]
+    P_U <- update_of_observations(m,P,y,H,R)[[2]][13:14,13:14]
   }
   
   # Update of states.
-  if (any(ode_grid$date == loc)){
-    J <- jacobian_matrix(X0=X[1:4],U[1],P,gamma,eta)
+  if (any(ode_grid == loc)){
+    P <- matrix_P(P_X,P_U)
+    J <- jacobian_measurement(X,U,P,gamma,eta)
     m <- c(X,U)
-    (X,P_X,U,P_U) <- update_of_states(m,P,h,J)
-      
+    X <- update_of_states(m,P,h,J)[[1]][1:4]
+    U <- update_of_states(m,P,h,J)[[1]][5:6]
+    P_X <- update_of_states(m,P,h,J)[[2]][1:12,1:12]
+    P_U <- update_of_states(m,P,h,J)[[2]][13:14,13:14]
   }
 }
-
-install.packages("htmltools")
-install.packages("pkgdown")
