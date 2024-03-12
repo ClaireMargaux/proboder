@@ -124,11 +124,11 @@ sigmoid <- function(z){
 }
 
 # ODE.
-f <- function(X0,beta,P,gamma,eta){
+f <- function(X0,beta,pop,gamma,eta){
   # Arguments:
   #   arg1: X0, matrix(nrow=4, ncol=1), solution of the ODE
   #   arg2: beta, numeric with values in [0,1], latent parameter of the ODE
-  #   arg3: P, integer, total population
+  #   arg3: pop, integer, total population
   #   arg4: gamma, numeric, recovery rate
   #   arg5: eta, numeric, fatality rate
   #
@@ -139,6 +139,7 @@ f <- function(X0,beta,P,gamma,eta){
   I <- X0[2]
   R <- X0[3]
   D <- X0[4]
+  P <- pop
   
   S_out <- -beta*S*I/P
   I_out <- beta*S*I/P - gamma*I - eta*I
@@ -151,10 +152,13 @@ f <- function(X0,beta,P,gamma,eta){
 }
 
 # Measurement model.
-h <- function(X,U){
+h <- function(X,U,pop,gamma,eta){
   # Arguments:
   #   arg1: X, matrix(nrow=12, ncol=1), solution of the ODE and its 2 first derivatives
   #   arg2: U, matrix(nrow=2, ncol=1), latent parameter of the ODE and it's first derivative
+  #   arg3: pop, integer, total population
+  #   arg4: gamma, numeric, recovery rate
+  #   arg5: eta, numeric, fatality rate
   #
   # Returns:
   #   output: evaluation of the measurement model h, matrix(nrow=4, ncol=1)
@@ -164,7 +168,7 @@ h <- function(X,U){
   
   X0 <- X[1:4]
   X1 <- X[5:8]
-  ODE <- f(X0,beta)
+  ODE <- f(X0,beta,pop,gamma,eta)
   
   sol <- matrix(X1 - ODE, nrow = 4, ncol = 1)
   
@@ -172,18 +176,19 @@ h <- function(X,U){
 }
 
 #' Jacobian of measurement model using jacobian function.
-jacobian_measurement <- function(X,U){
-  h1 <- function(X) h(X,U=U); h2 <- function(U) h(X=X,U)
+jacobian_measurement <- function(X,U,pop,gamma,eta){
+  h1 <- function(X) h(X,U=U,pop=pop,gamma=gamma,eta=eta)
+  h2 <- function(U) h(X=X,U,pop=pop,gamma=gamma,eta=eta)
   out <- cbind(jacobian(h1, x = X),jacobian(h2, x = U))
   return(out)
 }
 
 # Jacobian of f 'by hand'.
-jacobian_U <- function(X,U,P,gamma,eta){
+jacobian_U <- function(X,U,pop,gamma,eta){
   # Arguments:
   #   arg1: X, matrix(nrow=12, ncol=1), solution of the ODE and its 2 first derivatives
   #   arg2: U, numeric with values in [0,1], latent parameter of the ODE
-  #   arg3: P, integer, total population
+  #   arg3: pop, integer, total population
   #   arg4: gamma, numeric, recovery rate
   #   arg5: eta, numeric, fatality rate
   #
@@ -192,6 +197,7 @@ jacobian_U <- function(X,U,P,gamma,eta){
   
   X0 <- X[1:4]
   
+  P <- pop
   S <- X0[1]
   I <- X0[2]
   R <- X0[3]
@@ -208,11 +214,11 @@ jacobian_U <- function(X,U,P,gamma,eta){
   return(sol)
 }
 
-jacobian_X <- function(X,U,P,gamma,eta){
+jacobian_X <- function(X,U,pop,gamma,eta){
   # Arguments:
   #   arg1: X, matrix(nrow=12, ncol=1), solution of the ODE and its 2 first derivatives
   #   arg2: U, numeric with values in [0,1], latent parameter of the ODE
-  #   arg3: P, integer, total population
+  #   arg3: pop, integer, total population
   #   arg4: gamma, numeric, recovery rate
   #   arg5: eta, numeric, fatality rate
   #
@@ -221,6 +227,7 @@ jacobian_X <- function(X,U,P,gamma,eta){
   
   X0 <- X[1:4]
   
+  P <- pop
   S <- X0[1]
   I <- X0[2]
   R <- X0[3]
@@ -318,7 +325,7 @@ update_of_observations <- function(m,P,y,H,R){
   # Arguments:
   #   arg1: m, vector(nrow=14), predicted mean of U and X
   #   arg2: P, matrix(nrow=14, ncol=14), predicted covariance of U and X
-  #   arg3: y, vector(nrow=y), observations
+  #   arg3: y, vector(nrow=3), observations
   #   arg4: H, matrix(nrow=3, ncol=14), observation matrix
   #   arg5: R, matrix(nrow=3, ncol=3), observation noise
   #
@@ -327,7 +334,7 @@ update_of_observations <- function(m,P,y,H,R){
   #           mean and covariances of U and X
   
   v <- y - H %*% m # residual
-  S <- H %*% P %*% t(P) + R # innovation covariance
+  S <- H %*% P %*% t(H) + R # innovation covariance
   S_inv <- svd.inverse(S)
   K <- P %*% t(H) %*% S_inv # Kalman gain
   m_out <- m + K %*% v # updated mean
@@ -339,8 +346,6 @@ update_of_observations <- function(m,P,y,H,R){
 }
 
 # Update step on tau_ODE.
-J <- jacobian_measurement(X,U)
-h <- h(X,U)
 update_of_states <- function(m,P,h,J){
   # Arguments:
   #   arg1: m, vector(nrow=14), predicted mean of U and X
@@ -397,14 +402,14 @@ if (type == 'simulated'){
 }
 
 # X: solution of SIRD-ODE and its two first derivatives
-X <- c(data= c(obs[1,2],rep(0,11)))
+X <- as.vector(c(data= c(obs[1,2],rep(0,11))))
 # U: latent parameter (contact rate) and its first derivative
-U <- c(0,0)
+U <- as.vector(c(0,0))
 # P: total population
 if (type == 'simulated'){
-  P <- population_simulate
+  pop <- population_simulate
 }else{
-  P <- population
+  pop <- population
 }
 
 library(Matrix)
@@ -474,30 +479,58 @@ for (loc in time_grid){
   P_U_values[,,loc] <- as.matrix(P_U)
   
   # Prediction step.
-  U <- prediction_U(m_U=U,P_U=P_U,F_U=F_U,L_U=L_U)[[1]]
-  P_U <- prediction_U(m_U=U,P_U=P_U,F_U=F_U,L_U=L_U)[[2]]
-  X <- prediction_X(m_X=X,P_X=P_X,F_X=F_X,L_X=L_X)[[1]]
-  P_X <- prediction_X(m_X=X,P_X=P_X,F_X=F_X,L_X=L_X)[[2]]
+  U <- as.vector(prediction_U(m_U=U,P_U=P_U,F_U=F_U,L_U=L_U)[[1]])
+  P_U <- as.matrix(prediction_U(m_U=U,P_U=P_U,F_U=F_U,L_U=L_U)[[2]])
+  X <- as.vector(prediction_X(m_X=X,P_X=P_X,F_X=F_X,L_X=L_X)[[1]])
+  P_X <- as.matrix(prediction_X(m_X=X,P_X=P_X,F_X=F_X,L_X=L_X)[[2]])
   
   # Update of observations.
   if (any(data_grid == loc)){
-    m <- c(X,U)
+    m <- as.vector(c(X,U))
     P <- matrix_P(P_X,P_U)
     y <- obs[which(obs[, 1] == loc),2:4]
-    X <- update_of_observations(m,P,y,H,R)[[1]][1:4]
-    U <- update_of_observations(m,P,y,H,R)[[1]][5:6]
-    P_X <- update_of_observations(m,P,y,H,R)[[2]][1:12,1:12]
-    P_U <- update_of_observations(m,P,y,H,R)[[2]][13:14,13:14]
+    X <- as.vector(update_of_observations(m,P,y,H,R)[[1]][1:12])
+    U <- as.vector(update_of_observations(m,P,y,H,R)[[1]][13:14])
+    P_X <- as.matrix(update_of_observations(m,P,y,H,R)[[2]][1:12,1:12])
+    P_U <- as.matrix(update_of_observations(m,P,y,H,R)[[2]][13:14,13:14])
   }
   
   # Update of states.
   if (any(ode_grid == loc)){
     P <- matrix_P(P_X,P_U)
-    J <- jacobian_measurement(X,U,P,gamma,eta)
+    J <- jacobian_measurement(X,U,pop,gamma,eta)
     m <- c(X,U)
-    X <- update_of_states(m,P,h,J)[[1]][1:4]
-    U <- update_of_states(m,P,h,J)[[1]][5:6]
-    P_X <- update_of_states(m,P,h,J)[[2]][1:12,1:12]
-    P_U <- update_of_states(m,P,h,J)[[2]][13:14,13:14]
+    h_val <- h(X,U,pop,gamma,eta)
+    X <- as.vector(update_of_states(m,P,h_val,J)[[1]][1:12])
+    U <- as.vector(update_of_states(m,P,h_val,J)[[1]][13:14])
+    P_X <- as.matrix(update_of_states(m,P,h_val,J)[[2]][1:12,1:12])
+    P_U <- as.matrix(update_of_states(m,P,h_val,J)[[2]][13:14,13:14])
   }
 }
+
+#####################################
+################ PLOT ###############
+#####################################
+
+library(ggplot2)
+
+# Extract relevant data
+U_values_plot <- data.frame(time = time_grid, U_value = U_values[1, ])
+P_U_values_plot <- data.frame(
+  time = time_grid,
+  ymin = U_values[1, ] - sqrt(P_U_values[1, 1, ]),
+  ymax = U_values[1, ] + sqrt(P_U_values[1, 1, ])
+)
+real_beta_df <- data.frame(time = time_grid, real_beta = real_beta)
+
+# Plotting
+ggplot() +
+  geom_line(data = U_values_plot, aes(x = time, y = U_value, color = "Estimated Contact Rate"), size = 1) +
+  geom_ribbon(data = P_U_values_plot, aes(x = time, ymin = ymin, ymax = ymax), fill = "coral", alpha = 0.5) +
+  geom_line(data = real_beta_df, aes(x = time, y = real_beta, color = "Real Contact Rate"), linetype = "dashed") +
+  labs(x = "Time", y = "Contact rate", title = "Contact rate with Error Area",
+       color = "Legend") +  
+  scale_color_manual(values = c("Estimated Contact Rate" = "darkgreen", "Real Contact Rate" = "lightblue"),
+                     labels = c("Estimated Contact Rate", "Real Contact Rate")) +  # Specify legend labels
+  theme_minimal() +
+  theme(legend.position = "top")
