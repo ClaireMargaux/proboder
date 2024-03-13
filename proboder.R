@@ -3,7 +3,8 @@
 ################################################################################
 
 # Import functions.
-source('~/Documents/GitHub/proboder/functions.R')
+source('~/Documents/GitHub/proboder/functions_for_inference.R')
+source('~/Documents/GitHub/proboder/saving_loading_plotting.R')
 
 # Necessary packages.
 library(Matrix)
@@ -29,32 +30,31 @@ summary(obs)
 ########## INITIALIZATION ###########
 #####################################
 
-# X: initialization of solution of SIRD-ODE and its two first derivatives.
+# Initialize solution of SIRD-ODE and its two first derivatives
 X <- as.vector(c(data= c(obs[1,2],rep(0,11))))
-# U: initialization of latent parameter (contact rate) and its first derivative.
+# Initialize latent parameter (contact rate) and its first derivative
 U <- as.vector(c(0,0))
 
-# Fixed parameters.
-gamma <- 0.06 # recovery_rate
-eta <- 0.002 # fatality_rate
-l <- 14 # length_scale
+# Fixed parameters
+gamma <- 0.06  # Recovery rate
+eta <- 0.002   # Fatality rate
+l <- 14        # Length scale
 
-# Drift matrices.
+# Drift matrices
 F_U <- matrix(c(0,-(sqrt(3)/l)^2,1,-2*sqrt(3)/l), nrow = 2, ncol = 2)
 F_X <- as.matrix(sparseMatrix(i = 1:8, j = 5:12, x = 1, dims = c(12,12)))
 
-# Dispersion matrices.
+# Dispersion matrices
 L_U <- matrix(c(0,1), nrow = 2, ncol = 1)
-L_X <- sparseMatrix(i = 9:12, j = 1:4, x = 1, dims = c(12,4))
-L_X <- as.matrix(L_X)
+L_X <- as.matrix(sparseMatrix(i = 9:12, j = 1:4, x = 1, dims = c(12,4)))
 
-# Observation matrix (for observation of S,I and D).
+# Observation matrix (for observation of S,I and D)
 H <- as.matrix(sparseMatrix(i = c(1,2,3), j = c(1,2,4), x = 1, dims = c(3,14)))
 
-# Observation noise.
+# Observation noise
 R <- matrix(0.001, nrow = 3, ncol = 3)
 
-# Noise of priors.
+# Noise of priors
 P_X <- matrix(0.001, nrow = 12, ncol = 12)
 P_U <- matrix(0.001, nrow = 2, ncol = 2)
 
@@ -62,21 +62,22 @@ P_U <- matrix(0.001, nrow = 2, ncol = 2)
 ############# ALGORITHM #############
 #####################################
 
-#' @param recovery_rate
-#' @param fatality_rate
-#' @param length_scale
-#' @return contact_rate
+# Function parameters
+# @param recovery_rate
+# @param fatality_rate
+# @param length_scale
+# @return contact_rate
 
-# Data grid.
+# Data grid
 data_grid <- obs[,'date']
 
-# ODE grid.
+# ODE grid
 ode_grid <- data_grid # more points could be added
 
-# Overall time grid.
+# Overall time grid
 time_grid <- sort(unique(c(data_grid, ode_grid)))
 
-# Arrays to store values of X, P_X and U, P_U.
+# Arrays to store values
 X_values <- matrix(data = NA, nrow = 12, ncol = length(time_grid))
 U_values <- matrix(data = NA, nrow = 2, ncol = length(time_grid))
 P_X_values <- array(data = NA, dim = c(12, 12, length(time_grid)))
@@ -119,22 +120,37 @@ for (loc in time_grid){
   }
 }
 
-# Save results.
-directory_res = "~/Documents/GitHub/proboder/Results" # directory for results
+# ------------
+# Save results
+# ------------
+
+# Specify directory for results
+directory_res = "~/Documents/GitHub/proboder/Results"
+# Save results to the specified directory
 save_matrices_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
   
 #####################################
 ########### VISUALIZATION ###########
 #####################################
 
+# ---------------------
 # Extract relevant data
+# ---------------------
+
+# Load and process data from the specified directory
 processed_data <- load_and_process_data(directory_res,time_grid)
 U_plot <- processed_data$U_plot
 P_plot <- processed_data$P_plot
 ymin <- P_plot$ymin
 ymax <- P_plot$ymax
 U_value <- processed_data$U_scaled
+
+# Create data frame for real beta values (if available)
 real_beta_df <- data.frame(time = time_grid, real_beta = real_beta)
 
+# --------
 # Plotting
+# --------
+
+# Plot contact rate
 plot_contact_rate(type, U_plot, ymin, ymax, U_value, real_beta_df)
