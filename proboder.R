@@ -11,7 +11,7 @@ library(Matrix)
 library(numDeriv)
 library(matrixcalc)
 
-# Import data (in any case: date-S-I-D data).
+# Import data (in case 'real': date-S-I-D, in case 'simulated': date-S-I-R).
 directory_data <- "~/Documents/GitHub/proboder/Data" # directory of data
 type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data
 region <- 'BE' # 'BE' or 'GE' available (if 'real' data selected)
@@ -49,7 +49,13 @@ L_U <- matrix(c(0,1), nrow = 2, ncol = 1)
 L_X <- as.matrix(sparseMatrix(i = 9:12, j = 1:4, x = 1, dims = c(12,4)))
 
 # Observation matrix (for observation of S,I and D)
-H <- as.matrix(sparseMatrix(i = c(1,2,3), j = c(1,2,4), x = 1, dims = c(3,14)))
+if(type == 'real'){
+  H <- as.matrix(sparseMatrix(i = c(1,2,3), j = c(1,2,4), x = 1, dims = c(3,14)))
+}else if(type == 'simulated'){
+  H <- as.matrix(sparseMatrix(i = c(1,2,3), j = c(1,2,3), x = 1, dims = c(3,14)))
+}else{
+  print('Wrong type!')
+}
 
 # Observation noise
 R <- matrix(0.001, nrow = 3, ncol = 3)

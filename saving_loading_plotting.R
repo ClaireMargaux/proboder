@@ -81,7 +81,7 @@ plot_contact_rate <- function(type, U_plot, ymin, ymax, U_value, real_beta_df=NU
   
   if (type == 'simulated') {
     ggplot() +
-      geom_line(data = U_plot, aes(x = time, y = U_value, color = "Estimated Contact Rate"), size = 1) +
+      geom_line(data = U_plot, aes(x = time, y = U_value, color = "Estimated Contact Rate"), linewidth = 1) +
       geom_ribbon(data = data.frame(time = U_plot$time, ymin = ymin, ymax = ymax), aes(x = time, ymin = ymin, ymax = ymax), fill = "lightgreen", alpha = 0.5) +
       geom_line(data = real_beta_df, aes(x = time, y = real_beta, color = "Real Contact Rate"), linetype = "dashed") +
       labs(x = "Time", y = "Contact rate", title = "Contact rate with Error Area",
@@ -93,7 +93,7 @@ plot_contact_rate <- function(type, U_plot, ymin, ymax, U_value, real_beta_df=NU
       theme(legend.position = "top")
   } else {
     ggplot() +
-      geom_line(data = U_plot, aes(x = time, y = U_value, color = "Estimated Contact Rate"), size = 1) +
+      geom_line(data = U_plot, aes(x = time, y = U_value, color = "Estimated Contact Rate"), linewidth = 1) +
       geom_ribbon(data = data.frame(time = U_plot$time, ymin = ymin, ymax = ymax), aes(x = time, ymin = ymin, ymax = ymax), fill = "lightgreen", alpha = 0.5) +
       labs(x = "Time", y = "Contact rate", title = "Contact rate with Error Area",
            color = "Legend") +  

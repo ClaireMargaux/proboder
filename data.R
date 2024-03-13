@@ -3,9 +3,9 @@
 ###################################### Data ####################################
 
 directory <- "~/Documents/GitHub/proboder/Data" # directory for data
-type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data
+type <- 'real' # set 'real' for real data, 'simulated' for simulated data
 region <- 'GE' # 'BE' or 'GE' available (if 'real' data selected)
-daily_or_weekly <- 'weekly' # choose either 'daily' or 'weekly' (if 'real' data selected)
+daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly' (if 'real' data selected)
 
 ################################
 ####### SIMULATED DATA #########
@@ -113,6 +113,7 @@ observations <- left_join(susceptibles, cases, by = "date") %>%
   #left_join(recovered_per_day, by = "date") %>%
   left_join(deaths, by = "date")
 observations$deaths[is.na(observations$deaths)] <- 0
+colnames(observations) <- c('date','S','I','D')
 
 n <- nrow(observations) # size of data_grid
 
