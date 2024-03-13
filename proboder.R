@@ -1,5 +1,6 @@
 #################################### PROBODER ##################################
 ################################ Claire Descombes ##############################
+################################################################################
 
 # Import functions.
 source('~/Documents/GitHub/proboder/functions.R')
@@ -10,14 +11,15 @@ library(numDeriv)
 library(matrixcalc)
 
 # Import data (in any case: date-S-I-D data).
-directory <- "~/Documents/GitHub/proboder/Data" # directory of data
+directory_data <- "~/Documents/GitHub/proboder/Data" # directory of data
 type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data
 region <- 'BE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'weekly' # choose either 'daily' or 'weekly' (if 'real' data selected)
 
-data <- load_data(type,region,daily_or_weekly,directory)
+data <- load_data(type,region,daily_or_weekly,directory_data)
 obs <- data$observations
 pop <- data$population
+real_beta <- data$real_beta
 
 # Sanity check.
 head(obs)
@@ -97,7 +99,7 @@ for (loc in time_grid){
   if (any(data_grid == loc)){
     m <- as.vector(c(X,U))
     P <- matrix_P(P_X,P_U)
-    y <- obs[which(obs[, 1] == loc),2:4]
+    y <- unlist(obs[which(obs[, 1] == loc),2:4])
     X <- as.vector(update_of_observations(m,P,y,H,R)[[1]][1:12])
     U <- as.vector(update_of_observations(m,P,y,H,R)[[1]][13:14])
     P_X <- as.matrix(update_of_observations(m,P,y,H,R)[[2]][1:12,1:12])
@@ -117,31 +119,22 @@ for (loc in time_grid){
   }
 }
 
+# Save results.
+directory_res = "~/Documents/GitHub/proboder/Results" # directory for results
+save_matrices_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
+  
 #####################################
 ########### VISUALIZATION ###########
 #####################################
 
-library(ggplot2)
-
 # Extract relevant data
-U_scaled <- sigmoid(U_values[1,])
-U_plot <- data.frame(time = time_grid, U_value = U_scaled)
-P_plot <- data.frame(
-  time = time_grid,
-  ymin = U_scaled - sqrt(P_U_values[1, 1, ]),
-  ymax = U_scaled + sqrt(P_U_values[1, 1, ])
-)
+processed_data <- load_and_process_data(directory_res,time_grid)
+U_plot <- processed_data$U_plot
+P_plot <- processed_data$P_plot
+ymin <- P_plot$ymin
+ymax <- P_plot$ymax
+U_value <- processed_data$U_scaled
 real_beta_df <- data.frame(time = time_grid, real_beta = real_beta)
 
 # Plotting
-ggplot() +
-  geom_line(data = U_plot, aes(x = time, y = U_value, color = "Estimated Contact Rate"), size = 1) +
-  geom_ribbon(data = P_plot, aes(x = time, ymin = ymin, ymax = ymax), fill = "lightgreen", alpha = 0.5) +
-  geom_line(data = real_beta_df, aes(x = time, y = real_beta, color = "Real Contact Rate"), linetype = "dashed") +
-  labs(x = "Time", y = "Contact rate", title = "Contact rate with Error Area",
-       color = "Legend") +  
-  scale_color_manual(values = c("Estimated Contact Rate" = "darkgreen", "Real Contact Rate" = "lightblue4"),
-                     labels = c("Estimated Contact Rate", "Real Contact Rate")) +  # Specify legend labels
-  coord_cartesian(ylim = c(-1, 2)) +
-  theme_minimal() +
-  theme(legend.position = "top")
+plot_contact_rate(type, U_plot, ymin, ymax, U_value, real_beta_df)

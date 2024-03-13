@@ -1,0 +1,523 @@
+geoRegion,ageRange,sex,pop
+AG,0 - 9,male,37964
+AG,0 - 9,female,35471
+AG,10 - 19,male,35906
+AG,10 - 19,female,33620
+AG,20 - 29,male,41074
+AG,20 - 29,female,38704
+AG,30 - 39,male,51241
+AG,30 - 39,female,49159
+AG,40 - 49,male,49366
+AG,40 - 49,female,47459
+AG,50 - 59,male,54645
+AG,50 - 59,female,52887
+AG,60 - 69,male,41499
+AG,60 - 69,female,42187
+AG,70 - 79,male,28125
+AG,70 - 79,female,30301
+AG,80+,male,13613
+AG,80+,female,19865
+AI,0 - 9,male,882
+AI,0 - 9,female,869
+AI,10 - 19,male,864
+AI,10 - 19,female,802
+AI,20 - 29,male,1075
+AI,20 - 29,female,935
+AI,30 - 39,male,1101
+AI,30 - 39,female,983
+AI,40 - 49,male,997
+AI,40 - 49,female,933
+AI,50 - 59,male,1250
+AI,50 - 59,female,1234
+AI,60 - 69,male,1080
+AI,60 - 69,female,945
+AI,70 - 79,male,740
+AI,70 - 79,female,693
+AI,80+,male,400
+AI,80+,female,577
+AR,0 - 9,male,3073
+AR,0 - 9,female,2929
+AR,10 - 19,male,2745
+AR,10 - 19,female,2566
+AR,20 - 29,male,3192
+AR,20 - 29,female,2687
+AR,30 - 39,male,3651
+AR,30 - 39,female,3530
+AR,40 - 49,male,3609
+AR,40 - 49,female,3483
+AR,50 - 59,male,4310
+AR,50 - 59,female,4306
+AR,60 - 69,male,3715
+AR,60 - 69,female,3657
+AR,70 - 79,male,2504
+AR,70 - 79,female,2546
+AR,80+,male,1194
+AR,80+,female,1888
+BE,0 - 9,male,52391
+BE,0 - 9,female,49515
+BE,10 - 19,male,50088
+BE,10 - 19,female,47750
+BE,20 - 29,male,58500
+BE,20 - 29,female,56907
+BE,30 - 39,male,71616
+BE,30 - 39,female,71749
+BE,40 - 49,male,68711
+BE,40 - 49,female,68687
+BE,50 - 59,male,77590
+BE,50 - 59,female,77875
+BE,60 - 69,male,63213
+BE,60 - 69,female,66347
+BE,70 - 79,male,48175
+BE,70 - 79,female,54709
+BE,80+,male,24325
+BE,80+,female,39325
+BL,0 - 9,male,14379
+BL,0 - 9,female,13504
+BL,10 - 19,male,14606
+BL,10 - 19,female,13778
+BL,20 - 29,male,15403
+BL,20 - 29,female,14602
+BL,30 - 39,male,17810
+BL,30 - 39,female,18099
+BL,40 - 49,male,19151
+BL,40 - 49,female,19635
+BL,50 - 59,male,22574
+BL,50 - 59,female,23127
+BL,60 - 69,male,17893
+BL,60 - 69,female,18543
+BL,70 - 79,male,13652
+BL,70 - 79,female,15886
+BL,80+,male,8170
+BL,80+,female,12005
+BS,0 - 9,male,9527
+BS,0 - 9,female,8983
+BS,10 - 19,male,8123
+BS,10 - 19,female,7704
+BS,20 - 29,male,11448
+BS,20 - 29,female,11676
+BS,30 - 39,male,16647
+BS,30 - 39,female,16808
+BS,40 - 49,male,14052
+BS,40 - 49,female,13575
+BS,50 - 59,male,13464
+BS,50 - 59,female,13383
+BS,60 - 69,male,10387
+BS,60 - 69,female,11029
+BS,70 - 79,male,7192
+BS,70 - 79,female,8909
+BS,80+,male,4566
+BS,80+,female,8563
+FR,0 - 9,male,18711
+FR,0 - 9,female,17421
+FR,10 - 19,male,18446
+FR,10 - 19,female,17714
+FR,20 - 29,male,21962
+FR,20 - 29,female,20945
+FR,30 - 39,male,23578
+FR,30 - 39,female,22969
+FR,40 - 49,male,22789
+FR,40 - 49,female,22620
+FR,50 - 59,male,24579
+FR,50 - 59,female,24246
+FR,60 - 69,male,17611
+FR,60 - 69,female,17618
+FR,70 - 79,male,12013
+FR,70 - 79,female,13056
+FR,80+,male,5369
+FR,80+,female,8162
+GE,0 - 9,male,27443
+GE,0 - 9,female,26031
+GE,10 - 19,male,27492
+GE,10 - 19,female,26412
+GE,20 - 29,male,32072
+GE,20 - 29,female,32067
+GE,30 - 39,male,37538
+GE,30 - 39,female,38745
+GE,40 - 49,male,37654
+GE,40 - 49,female,39380
+GE,50 - 59,male,35394
+GE,50 - 59,female,37084
+GE,60 - 69,male,23564
+GE,60 - 69,female,25358
+GE,70 - 79,male,15856
+GE,70 - 79,female,20849
+GE,80+,male,9905
+GE,80+,female,16604
+GL,0 - 9,male,2043
+GL,0 - 9,female,2019
+GL,10 - 19,male,1967
+GL,10 - 19,female,1860
+GL,20 - 29,male,2488
+GL,20 - 29,female,2210
+GL,30 - 39,male,3031
+GL,30 - 39,female,2662
+GL,40 - 49,male,2751
+GL,40 - 49,female,2577
+GL,50 - 59,male,3132
+GL,50 - 59,female,3031
+GL,60 - 69,male,2687
+GL,60 - 69,female,2615
+GL,70 - 79,male,1823
+GL,70 - 79,female,1972
+GL,80+,male,890
+GL,80+,female,1432
+GR,0 - 9,male,9098
+GR,0 - 9,female,8520
+GR,10 - 19,male,9099
+GR,10 - 19,female,8531
+GR,20 - 29,male,11746
+GR,20 - 29,female,10712
+GR,30 - 39,male,13450
+GR,30 - 39,female,12670
+GR,40 - 49,male,13237
+GR,40 - 49,female,12838
+GR,50 - 59,male,16162
+GR,50 - 59,female,15612
+GR,60 - 69,male,13447
+GR,60 - 69,female,13522
+GR,70 - 79,male,9871
+GR,70 - 79,female,10590
+GR,80+,male,4935
+GR,80+,female,7336
+JU,0 - 9,male,3758
+JU,0 - 9,female,3548
+JU,10 - 19,male,4052
+JU,10 - 19,female,3802
+JU,20 - 29,male,4717
+JU,20 - 29,female,4232
+JU,30 - 39,male,4487
+JU,30 - 39,female,4339
+JU,40 - 49,male,4421
+JU,40 - 49,female,4571
+JU,50 - 59,male,5369
+JU,50 - 59,female,5473
+JU,60 - 69,male,4568
+JU,60 - 69,female,4752
+JU,70 - 79,male,3455
+JU,70 - 79,female,3795
+JU,80+,male,1695
+JU,80+,female,2764
+LU,0 - 9,male,22550
+LU,0 - 9,female,21185
+LU,10 - 19,male,21388
+LU,10 - 19,female,20091
+LU,20 - 29,male,26684
+LU,20 - 29,female,25639
+LU,30 - 39,male,30968
+LU,30 - 39,female,30186
+LU,40 - 49,male,28067
+LU,40 - 49,female,27702
+LU,50 - 59,male,31281
+LU,50 - 59,female,30837
+LU,60 - 69,male,23924
+LU,60 - 69,female,24184
+LU,70 - 79,male,15979
+LU,70 - 79,female,17606
+LU,80+,male,8624
+LU,80+,female,13431
+NE,0 - 9,male,8892
+NE,0 - 9,female,8372
+NE,10 - 19,male,9821
+NE,10 - 19,female,9262
+NE,20 - 29,male,11271
+NE,20 - 29,female,10570
+NE,30 - 39,male,11622
+NE,30 - 39,female,11537
+NE,40 - 49,male,11840
+NE,40 - 49,female,12116
+NE,50 - 59,male,12847
+NE,50 - 59,female,12917
+NE,60 - 69,male,9296
+NE,60 - 69,female,9913
+NE,70 - 79,male,7063
+NE,70 - 79,female,8464
+NE,80+,male,3742
+NE,80+,female,6621
+NW,0 - 9,male,2052
+NW,0 - 9,female,1862
+NW,10 - 19,male,2074
+NW,10 - 19,female,1872
+NW,20 - 29,male,2455
+NW,20 - 29,female,2178
+NW,30 - 39,male,2949
+NW,30 - 39,female,2693
+NW,40 - 49,male,2836
+NW,40 - 49,female,2777
+NW,50 - 59,male,3720
+NW,50 - 59,female,3553
+NW,60 - 69,male,3143
+NW,60 - 69,female,2904
+NW,70 - 79,male,2250
+NW,70 - 79,female,2211
+NW,80+,male,1009
+NW,80+,female,1356
+OW,0 - 9,male,1949
+OW,0 - 9,female,1876
+OW,10 - 19,male,1922
+OW,10 - 19,female,1865
+OW,20 - 29,male,2180
+OW,20 - 29,female,2019
+OW,30 - 39,male,2554
+OW,30 - 39,female,2481
+OW,40 - 49,male,2580
+OW,40 - 49,female,2444
+OW,50 - 59,male,3117
+OW,50 - 59,female,3004
+OW,60 - 69,male,2545
+OW,60 - 69,female,2401
+OW,70 - 79,male,1770
+OW,70 - 79,female,1734
+OW,80+,male,837
+OW,80+,female,1157
+SG,0 - 9,male,27782
+SG,0 - 9,female,26258
+SG,10 - 19,male,26802
+SG,10 - 19,female,25430
+SG,20 - 29,male,33882
+SG,20 - 29,female,31088
+SG,30 - 39,male,38171
+SG,30 - 39,female,35482
+SG,40 - 49,male,34122
+SG,40 - 49,female,32642
+SG,50 - 59,male,38562
+SG,50 - 59,female,37837
+SG,60 - 69,male,29789
+SG,60 - 69,female,30600
+SG,70 - 79,male,21014
+SG,70 - 79,female,23064
+SG,80+,male,10527
+SG,80+,female,16193
+SH,0 - 9,male,4149
+SH,0 - 9,female,3901
+SH,10 - 19,male,3983
+SH,10 - 19,female,3798
+SH,20 - 29,male,4918
+SH,20 - 29,female,4432
+SH,30 - 39,male,5715
+SH,30 - 39,female,5491
+SH,40 - 49,male,5480
+SH,40 - 49,female,5266
+SH,50 - 59,male,6211
+SH,50 - 59,female,6333
+SH,60 - 69,male,5317
+SH,60 - 69,female,5547
+SH,70 - 79,male,3736
+SH,70 - 79,female,4317
+SH,80+,male,2099
+SH,80+,female,3302
+SO,0 - 9,male,14124
+SO,0 - 9,female,13472
+SO,10 - 19,male,13443
+SO,10 - 19,female,12583
+SO,20 - 29,male,16258
+SO,20 - 29,female,15283
+SO,30 - 39,male,19579
+SO,30 - 39,female,18973
+SO,40 - 49,male,18230
+SO,40 - 49,female,17742
+SO,50 - 59,male,21976
+SO,50 - 59,female,21585
+SO,60 - 69,male,18046
+SO,60 - 69,female,18059
+SO,70 - 79,male,12247
+SO,70 - 79,female,13008
+SO,80+,male,6144
+SO,80+,female,9493
+SZ,0 - 9,male,8279
+SZ,0 - 9,female,7759
+SZ,10 - 19,male,7899
+SZ,10 - 19,female,7463
+SZ,20 - 29,male,9465
+SZ,20 - 29,female,8615
+SZ,30 - 39,male,11512
+SZ,30 - 39,female,10725
+SZ,40 - 49,male,11747
+SZ,40 - 49,female,10984
+SZ,50 - 59,male,14295
+SZ,50 - 59,female,12845
+SZ,60 - 69,male,10687
+SZ,60 - 69,female,9757
+SZ,70 - 79,male,6858
+SZ,70 - 79,female,6854
+SZ,80+,male,3319
+SZ,80+,female,4626
+TG,0 - 9,male,15577
+TG,0 - 9,female,14559
+TG,10 - 19,male,14369
+TG,10 - 19,female,13496
+TG,20 - 29,male,16956
+TG,20 - 29,female,15751
+TG,30 - 39,male,21066
+TG,30 - 39,female,19644
+TG,40 - 49,male,19112
+TG,40 - 49,female,18101
+TG,50 - 59,male,22387
+TG,50 - 59,female,22267
+TG,60 - 69,male,17691
+TG,60 - 69,female,17560
+TG,70 - 79,male,11484
+TG,70 - 79,female,12153
+TG,80+,male,5505
+TG,80+,female,8286
+TI,0 - 9,male,14531
+TI,0 - 9,female,13945
+TI,10 - 19,male,17410
+TI,10 - 19,female,16470
+TI,20 - 29,male,19245
+TI,20 - 29,female,18071
+TI,30 - 39,male,19961
+TI,30 - 39,female,19820
+TI,40 - 49,male,23463
+TI,40 - 49,female,24827
+TI,50 - 59,male,29184
+TI,50 - 59,female,29324
+TI,60 - 69,male,21063
+TI,60 - 69,female,22413
+TI,70 - 79,male,16573
+TI,70 - 79,female,19605
+TI,80+,male,10019
+TI,80+,female,16257
+UR,0 - 9,male,1818
+UR,0 - 9,female,1796
+UR,10 - 19,male,1965
+UR,10 - 19,female,1787
+UR,20 - 29,male,2293
+UR,20 - 29,female,2040
+UR,30 - 39,male,2393
+UR,30 - 39,female,2244
+UR,40 - 49,male,2401
+UR,40 - 49,female,2283
+UR,50 - 59,male,2830
+UR,50 - 59,female,2697
+UR,60 - 69,male,2477
+UR,60 - 69,female,2301
+UR,70 - 79,male,1785
+UR,70 - 79,female,1810
+UR,80+,male,882
+UR,80+,female,1245
+VD,0 - 9,male,45014
+VD,0 - 9,female,42901
+VD,10 - 19,male,47199
+VD,10 - 19,female,44675
+VD,20 - 29,male,54468
+VD,20 - 29,female,51792
+VD,30 - 39,male,60248
+VD,30 - 39,female,60253
+VD,40 - 49,male,58482
+VD,40 - 49,female,59930
+VD,50 - 59,male,57488
+VD,50 - 59,female,58449
+VD,60 - 69,male,38959
+VD,60 - 69,female,41388
+VD,70 - 79,male,27740
+VD,70 - 79,female,34482
+VD,80+,male,14713
+VD,80+,female,24787
+VS,0 - 9,male,17220
+VS,0 - 9,female,16560
+VS,10 - 19,male,17813
+VS,10 - 19,female,16821
+VS,20 - 29,male,21812
+VS,20 - 29,female,20672
+VS,30 - 39,male,24417
+VS,30 - 39,female,23436
+VS,40 - 49,male,23397
+VS,40 - 49,female,22768
+VS,50 - 59,male,26536
+VS,50 - 59,female,26480
+VS,60 - 69,male,21008
+VS,60 - 69,female,21891
+VS,70 - 79,male,15738
+VS,70 - 79,female,17719
+VS,80+,male,7534
+VS,80+,female,11387
+ZG,0 - 9,male,6820
+ZG,0 - 9,female,6491
+ZG,10 - 19,male,6608
+ZG,10 - 19,female,6280
+ZG,20 - 29,male,6790
+ZG,20 - 29,female,6398
+ZG,30 - 39,male,9523
+ZG,30 - 39,female,9081
+ZG,40 - 49,male,9900
+ZG,40 - 49,female,9555
+ZG,50 - 59,male,11011
+ZG,50 - 59,female,10060
+ZG,60 - 69,male,7529
+ZG,60 - 69,female,7120
+ZG,70 - 79,male,4958
+ZG,70 - 79,female,5354
+ZG,80+,male,2602
+ZG,80+,female,3707
+ZH,0 - 9,male,84067
+ZH,0 - 9,female,80064
+ZH,10 - 19,male,75553
+ZH,10 - 19,female,70925
+ZH,20 - 29,male,94945
+ZH,20 - 29,female,90208
+ZH,30 - 39,male,129973
+ZH,30 - 39,female,126397
+ZH,40 - 49,male,118302
+ZH,40 - 49,female,113947
+ZH,50 - 59,male,114434
+ZH,50 - 59,female,109218
+ZH,60 - 69,male,76698
+ZH,60 - 69,female,80770
+ZH,70 - 79,male,55317
+ZH,70 - 79,female,64844
+ZH,80+,male,30956
+ZH,80+,female,48044
+FL,0 - 9,male,1981
+FL,0 - 9,female,1803
+FL,10 - 19,male,2022
+FL,10 - 19,female,1855
+FL,20 - 29,male,2253
+FL,20 - 29,female,2230
+FL,30 - 39,male,2503
+FL,30 - 39,female,2507
+FL,40 - 49,male,2683
+FL,40 - 49,female,2745
+FL,50 - 59,male,3194
+FL,50 - 59,female,3240
+FL,60 - 69,male,2440
+FL,60 - 69,female,2544
+FL,70 - 79,male,1668
+FL,70 - 79,female,1778
+FL,80+,male,624
+FL,80+,female,985
+CH,0 - 9,male,454093
+CH,0 - 9,female,429811
+CH,10 - 19,male,441637
+CH,10 - 19,female,417357
+CH,20 - 29,male,527299
+CH,20 - 29,female,500433
+CH,30 - 39,male,634801
+CH,30 - 39,female,620156
+CH,40 - 49,male,606697
+CH,40 - 49,female,598842
+CH,50 - 59,male,654348
+CH,50 - 59,female,645664
+CH,60 - 69,male,487836
+CH,60 - 69,female,503381
+CH,70 - 79,male,347918
+CH,70 - 79,female,396531
+CH,80+,male,183574
+CH,80+,female,288413
+CHFL,0 - 9,male,456074
+CHFL,0 - 9,female,431614
+CHFL,10 - 19,male,443659
+CHFL,10 - 19,female,419212
+CHFL,20 - 29,male,529552
+CHFL,20 - 29,female,502663
+CHFL,30 - 39,male,637304
+CHFL,30 - 39,female,622663
+CHFL,40 - 49,male,609380
+CHFL,40 - 49,female,601587
+CHFL,50 - 59,male,657542
+CHFL,50 - 59,female,648904
+CHFL,60 - 69,male,490276
+CHFL,60 - 69,female,505925
+CHFL,70 - 79,male,349586
+CHFL,70 - 79,female,398309
+CHFL,80+,male,184198
+CHFL,80+,female,289398

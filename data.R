@@ -3,7 +3,7 @@
 ###################################### Data ####################################
 
 directory <- "~/Documents/GitHub/proboder/Data" # directory for data
-type <- 'real' # set 'real' for real data, 'simulated' for simulated data
+type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data
 region <- 'GE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'weekly' # choose either 'daily' or 'weekly' (if 'real' data selected)
 
@@ -32,7 +32,7 @@ observations_simulate <- data.frame(date,S,I,R)
 ################################
 
 # Import dataset.
-setwd("~/Nextcloud/Documents/Mathe/HS23/Master thesis/data_covid_dashboard/sources-csv/data")
+setwd("~/Documents/GitHub/proboder/data_covid_dashboard/sources-csv/data")
 
 if (daily_or_weekly == 'daily'){
   csv_data_cases <- read.csv(file = "COVID19Cases_geoRegion.csv")
@@ -134,6 +134,7 @@ n <- nrow(observations) # size of data_grid
 if (type == 'simulated') {
   save(observations_simulate, file = file.path(directory, "simulated_data.Rdata"))
   saveRDS(population_simulate, file = file.path(directory, "simulated_pop.Rds"))
+  saveRDS(real_beta, file = file.path(directory, "simulated_real_beta.Rds"))
 } else {
   region_filename <- paste0("real_data_", region, "_", daily_or_weekly, ".Rdata")
   population_filename <- paste0("real_pop_", region, "_", daily_or_weekly, ".Rds")
