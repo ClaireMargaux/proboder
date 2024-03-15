@@ -97,10 +97,10 @@ for (loc in time_grid){
   P_U_values[,,loc] <- as.matrix(P_U)
   
   # Prediction step.
-  U <- as.vector(prediction_U(m_U=U,P_U=P_U,F_U=F_U,L_U=L_U)[[1]])
-  P_U <- as.matrix(prediction_U(m_U=U,P_U=P_U,F_U=F_U,L_U=L_U)[[2]])
-  X <- as.vector(prediction_X(m_X=X,P_X=P_X,F_X=F_X,L_X=L_X)[[1]])
-  P_X <- as.matrix(prediction_X(m_X=X,P_X=P_X,F_X=F_X,L_X=L_X)[[2]])
+  U <- as.vector(prediction(U, P_U, F_U, L_U)[[1]])
+  P_U <- as.matrix(prediction(U, P_U, F_U, L_U)[[2]])
+  X <- as.vector(prediction(X, P_X, F_X, L_X)[[1]])
+  P_X <- as.matrix(prediction(X, P_X, F_X, L_X)[[2]])
   
   # Update of observations.
   if (any(data_grid == loc)){
