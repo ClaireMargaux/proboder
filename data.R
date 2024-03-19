@@ -3,7 +3,7 @@
 ###################################### Data ####################################
 
 directory <- "~/Documents/GitHub/proboder/Data" # directory for data
-type <- 'real' # set 'real' for real data, 'simulated' for simulated data
+type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data
 region <- 'GE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly' (if 'real' data selected)
 

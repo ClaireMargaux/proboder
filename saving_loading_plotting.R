@@ -61,13 +61,14 @@ load_and_process_data <- function(directory_res, time_grid) {
   
   # Process U_values for visualization
   U_scaled <- sigmoid(U_values[1, ])
-  U_plot <- data.frame(time = time_grid, U_value = U_scaled, row.names = NULL)
+  U_plot <- data.frame(time = time_grid, U_scaled = U_scaled, row.names = NULL)
   
   # Process P_U_values for visualization
-  P_U_scaled <- P_U_scaled <- sqrt(P_U_values[1, 1, ])
+  P_U <- P_U_values[1, 1, ]
   
-  ymin <- U_scaled - P_U_scaled
-  ymax <- U_scaled + P_U_scaled
+  # Generate values for error area
+  ymin <- mapply(function(mu, sigma) sigmoid(qnorm(0.025, mean = mu, sd = sqrt(sigma))), U_scaled, P_U)
+  ymax <- mapply(function(mu, sigma) sigmoid(qnorm(0.975, mean = mu, sd = sqrt(sigma))), U_scaled, P_U)
   
   # Create data frame for P_plot
   P_plot <- data.frame(time = time_grid, ymin = ymin, ymax = ymax, row.names = NULL)
@@ -76,31 +77,74 @@ load_and_process_data <- function(directory_res, time_grid) {
   return(list(U_plot = U_plot, P_plot = P_plot, U_scaled = U_scaled))
 }
 
-plot_contact_rate <- function(type, U_plot, ymin, ymax, U_value, real_beta_df=NULL) {
+plot_contact_rate <- function(type, U_plot, ymin, ymax, U_scaled, real_beta_df = NULL) {
   library(ggplot2)
   
   if (type == 'simulated') {
     ggplot() +
-      geom_line(data = U_plot, aes(x = time, y = U_value, color = "Estimated Contact Rate"), linewidth = 1) +
-      geom_ribbon(data = data.frame(time = U_plot$time, ymin = ymin, ymax = ymax), aes(x = time, ymin = ymin, ymax = ymax), fill = "lightgreen", alpha = 0.5) +
+      geom_line(data = U_plot, aes(x = time, y = U_scaled, color = "Estimated Contact Rate"), linewidth = 1) +
       geom_line(data = real_beta_df, aes(x = time, y = real_beta, color = "Real Contact Rate"), linetype = "dashed") +
-      labs(x = "Time", y = "Contact rate", title = "Contact rate with Error Area",
+      geom_ribbon(data = data.frame(time = U_plot$time, ymin = ymin, ymax = ymax), aes(x = time, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
+      labs(x = "Time", y = "Contact rate", title = "Contact rate with 95%-confidence interval",
            color = "Legend") +  
       scale_color_manual(values = c("Estimated Contact Rate" = "darkgreen", "Real Contact Rate" = "lightblue4"),
-                         labels = c("Estimated Contact Rate", "Real Contact Rate")) + 
-      coord_cartesian(ylim = c(-1, 2)) +
+                         labels = c("Estimated Contact Rate", "Real Contact Rate"), name = "Lines") + 
+      scale_fill_manual(values = c("Error Area" = "lightgreen"),
+                        labels = "95%-confidence interval", name = "Ribbon") +
       theme_minimal() +
-      theme(legend.position = "top")
+      theme(legend.position = "top") +
+      guides(color = guide_legend(order = 1),
+             fill = guide_legend(order = 2))
   } else {
     ggplot() +
-      geom_line(data = U_plot, aes(x = time, y = U_value, color = "Estimated Contact Rate"), linewidth = 1) +
-      geom_ribbon(data = data.frame(time = U_plot$time, ymin = ymin, ymax = ymax), aes(x = time, ymin = ymin, ymax = ymax), fill = "lightgreen", alpha = 0.5) +
-      labs(x = "Time", y = "Contact rate", title = "Contact rate with Error Area",
+      geom_line(data = U_plot, aes(x = time, y = U_scaled, color = "Estimated Contact Rate"), linewidth = 1) +
+      geom_ribbon(data = data.frame(time = U_plot$time, ymin = ymin, ymax = ymax), aes(x = time, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
+      labs(x = "Time", y = "Contact rate", title = "Contact rate with 95%-confidence interval",
            color = "Legend") +  
       scale_color_manual(values = c("Estimated Contact Rate" = "darkgreen"),
-                         labels = "Estimated Contact Rate") +  
-      coord_cartesian(ylim = c(-1, 2)) +
+                         labels = "Estimated Contact Rate", name = "Line") +  
+      scale_fill_manual(values = c("Error Area" = "lightgreen"),
+                        labels = "95%-confidence interval", name = "Ribbon") +
       theme_minimal() +
-      theme(legend.position = "top")
+      theme(legend.position = "top")+
+      guides(color = guide_legend(order = 1),
+             fill = guide_legend(order = 2))
   }
+}
+
+plot_data <- function(obs, type) {
+  # Adjust variable names and labels based on type
+  if (type == 'simulated') {
+    S_var <- 'S'
+    I_var <- 'I'
+    R_var <- 'R'
+    legend_labels <- c("Susceptible", "Infected", "Recovered")
+    plot_title <- "S, I and R counts"
+  } else if (type == 'real') {
+    S_var <- 'S'
+    I_var <- 'I'
+    R_var <- 'D'  # Assuming 'D' represents 'Deaths' in real data
+    legend_labels <- c("Susceptible", "Infected", "Deaths")
+    plot_title <- "S, I and D counts"
+  } else {
+    stop("Invalid type. Please specify 'simulated' or 'real'.")
+  }
+  
+  obs[[S_var]] <- obs[[S_var]] + 0.01
+  obs[[I_var]] <- obs[[I_var]] + 0.01
+  obs[[R_var]] <- obs[[R_var]] + 0.01
+
+  cols <- c("S" = "darkblue", 
+            "I" = "coral3", 
+            "R" = "darkgreen")
+    
+  ggplot() +
+    geom_line(data = obs, aes(x = date, y = .data[[S_var]], color = "S"), linewidth = 1) +
+    geom_line(data = obs, aes(x = date, y = .data[[I_var]], color = "I"), linewidth = 1) +
+    geom_line(data = obs, aes(x = date, y = .data[[R_var]], color = "R"), linewidth = 1) +
+    scale_y_log10() +  # Log scale for y-axis
+    labs(x = "Date", y = "Count (log-scale)", title = plot_title) +
+    theme_minimal() +
+    scale_color_manual(values = cols,
+                       name = "Compartment")
 }

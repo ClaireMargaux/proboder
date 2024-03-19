@@ -16,6 +16,20 @@ sigmoid <- function(z) {
   return(1 / (1 + exp(-z)))
 }
 
+#' Logit function
+#'
+#' Calculate the logit (inverse of sigmoid) function for the given input.
+#'
+#' @param p Numeric input.
+#' @return Logit value of the input.
+#' @examples
+#' logit(0.5) # Returns 0
+#' logit(0.7310586) # Returns 1
+#' @export
+logit <- function(p) {
+  return(log(p / (1 - p)))
+}
+
 #' ODE function
 #'
 #' This function evaluates the ordinary differential equation (ODE) for a given set of parameters.
@@ -116,82 +130,6 @@ jacobian_h <- function(X, U, pop, gamma, eta) {
   return(out)
 }
 
-# Jacobian of f 'by hand'.
-jacobian_U <- function(X,U,pop,gamma,eta){
-  # Arguments:
-  #   arg1: X, matrix(nrow=12, ncol=1), solution of the ODE and its 2 first derivatives
-  #   arg2: U, numeric with values in [0,1], latent parameter of the ODE
-  #   arg3: pop, integer, total population
-  #   arg4: gamma, numeric, recovery rate
-  #   arg5: eta, numeric, fatality rate
-  #
-  # Returns:
-  #   output: matrix(nrow=2, ncol=2), Jacobian of ODE f wrt U
-  
-  X0 <- X[1:4]
-  
-  P <- pop
-  S <- X0[1]
-  I <- X0[2]
-  R <- X0[3]
-  D <- X0[4]
-  beta <- U
-  
-  d_dbeta <- matrix(
-    data=c(-S * I / P, S * I / P, 0, 0),
-    nrow=1, ncol=4
-  )
-  
-  sol <- d_dbeta
-  
-  return(sol)
-}
-
-jacobian_X <- function(X,U,pop,gamma,eta){
-  # Arguments:
-  #   arg1: X, matrix(nrow=12, ncol=1), solution of the ODE and its 2 first derivatives
-  #   arg2: U, numeric with values in [0,1], latent parameter of the ODE
-  #   arg3: pop, integer, total population
-  #   arg4: gamma, numeric, recovery rate
-  #   arg5: eta, numeric, fatality rate
-  #
-  # Returns:
-  #   output: matrix(nrow=4, ncol=4), Jacobian of ODE f wrt X0
-  
-  X0 <- X[1:4]
-  
-  P <- pop
-  S <- X0[1]
-  I <- X0[2]
-  R <- X0[3]
-  D <- X0[4]
-  beta <- U
-  
-  d_dS <- matrix(
-    data=c(-beta * I / P, -beta * S / P, 0, 0),
-    nrow=1, ncol=4
-  )
-  
-  d_dI <- matrix(
-    data=c(beta * I / P, beta * S / P - gamma - eta, 0, 0),
-    nrow=1, ncol=4
-  )
-  
-  d_dR <- matrix(
-    data=c(0, gamma, 0, 0),
-    nrow=1, ncol=4
-  )
-  
-  d_dD <- matrix(
-    data=c(0, eta, 0, 0),
-    nrow=1, ncol=4
-  )
-  
-  sol <- rbind(d_dS,d_dI,d_dR,d_dD)
-  
-  return(sol)
-}
-
 #' Prediction function for latent parameter U or state variable X
 #'
 #' This function calculates the predicted mean and covariance of either U or X using the given parameters.
@@ -213,25 +151,26 @@ prediction <- function(m, P, drift, dispersion) {
   #   A list containing the predicted mean and covariance.
   
   exp_F <- expm(drift)
-  m_out <- exp_F %*% m
-  m_out <- as.vector(m_out)
-  
-  n <- nrow(drift)
-  j <- ncol(dispersion)
-  Q <- diag(0.1, nrow = j, ncol = j)
-  top_row <- cbind(drift, dispersion %*% Q %*% t(dispersion))
-  #top_row <- cbind(drift, dispersion %*% t(dispersion))
+  m_out <- as.vector(exp_F %*% m)
+
+  n <- nrow(drift); k <- ncol(dispersion)
+  noise_wiener <- diag(10, nrow = k, ncol = k)
+  top_row <- cbind(drift, dispersion %*% noise_wiener %*% t(dispersion))
   bottom_row <- cbind(matrix(0, nrow = n, ncol = n), -t(drift))
   Gamma <- rbind(top_row, bottom_row)
   exp_Gamma <- expm(Gamma)
   
   M_1 <- exp_Gamma[1:n, 1:n]
   M_2 <- exp_Gamma[1:n, (n + 1):(2 * n)]
+  M_3 <- exp_Gamma[(n + 1):(2 * n), (n + 1):(2 * n)]
   
-  G <- M_2 %*% t(M_1)
-  
-  P_out <- exp_F %*% P %*% t(exp_F) + G
-  P_out <- as.matrix(P_out)
+  # Alternative 1: compute Qd
+  Qd <- M_2 %*% t(M_1)
+  P_out <- as.matrix(exp_F %*% P %*% t(exp_F) + Qd)
+
+  # Alternative 2: matrix fraction decomposition
+  #M_3_inv <- svd.inverse(as.matrix(M_3))
+  #P_out <- as.matrix((M_1 %*% P + M_2) %*% M_3_inv)
   
   out <- list(m_out, P_out)
   

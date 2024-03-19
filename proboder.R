@@ -10,6 +10,8 @@ source('~/Documents/GitHub/proboder/saving_loading_plotting.R')
 library(Matrix)
 library(numDeriv)
 library(matrixcalc)
+library(greybox)
+library(ggplot2)
 
 # Import data (in case 'real': date-S-I-D, in case 'simulated': date-S-I-R).
 directory_data <- "~/Documents/GitHub/proboder/Data" # directory of data
@@ -30,15 +32,23 @@ summary(obs)
 ########## INITIALIZATION ###########
 #####################################
 
-# Initialize solution of SIRD-ODE and its two first derivatives
-X <- as.vector(c(data= c(obs[1,2],rep(0,11))))
 # Initialize latent parameter (contact rate) and its first derivative
-U <- as.vector(c(0,0))
+U <- as.vector(c(
+  logit(0.99), # Initial value for contact rate
+  0) # Initial values for 1st derivative
+)
+
+# Initialize solution of SIRD-ODE and its two first derivatives
+X <- as.vector(c(
+  c(obs[1,2], rep(0,3), # Initial values for S, I, and R or D
+  rep(0.1,4), # Initial values for 1st derivatives
+  rep(0,4))) # Initial values for 2nd derivatives
+)
 
 # Fixed parameters
-gamma <- 0.06  # Recovery rate
+gamma <- 0.4  # Recovery rate
 eta <- 0.002   # Fatality rate
-l <- 14        # Length scale
+l <- 2        # Length scale
 
 # Drift matrices
 F_U <- matrix(c(0,-(sqrt(3)/l)^2,1,-2*sqrt(3)/l), nrow = 2, ncol = 2)
@@ -48,7 +58,7 @@ F_X <- as.matrix(sparseMatrix(i = 1:8, j = 5:12, x = 1, dims = c(12,12)))
 L_U <- matrix(c(0,1), nrow = 2, ncol = 1)
 L_X <- as.matrix(sparseMatrix(i = 9:12, j = 1:4, x = 1, dims = c(12,4)))
 
-# Observation matrix (for observation of S,I and D)
+# Observation matrix (for observation of S,I, and R or D)
 if(type == 'real'){
   H <- as.matrix(sparseMatrix(i = c(1,2,3), j = c(1,2,4), x = 1, dims = c(3,14)))
 }else if(type == 'simulated'){
@@ -58,11 +68,12 @@ if(type == 'real'){
 }
 
 # Observation noise
-R <- matrix(0.001, nrow = 3, ncol = 3)
+#R <- matrix(0.1, nrow = 3, ncol = 3)
+R <- cov(obs[,-1])
 
 # Noise of priors
-P_X <- matrix(0.001, nrow = 12, ncol = 12)
-P_U <- matrix(0.001, nrow = 2, ncol = 2)
+P_X <- matrix(0.1, nrow = 12, ncol = 12)
+P_U <- matrix(0.1, nrow = 2, ncol = 2)
 
 #####################################
 ############# ALGORITHM #############
@@ -90,11 +101,12 @@ P_X_values <- array(data = NA, dim = c(12, 12, length(time_grid)))
 P_U_values <- array(data = NA, dim = c(2, 2, length(time_grid)))
 
 # Run inference.
+i <- 1
 for (loc in time_grid){
-  X_values[,loc] <- as.vector(X)
-  U_values[,loc] <- as.vector(U)
-  P_X_values[,,loc] <- as.matrix(P_X)
-  P_U_values[,,loc] <- as.matrix(P_U)
+  X_values[,i] <- as.vector(X)
+  U_values[,i] <- as.vector(U)
+  P_X_values[,,i] <- as.matrix(P_X)
+  P_U_values[,,i] <- as.matrix(P_U)
   
   # Prediction step.
   U <- as.vector(prediction(U, P_U, F_U, L_U)[[1]])
@@ -124,6 +136,8 @@ for (loc in time_grid){
     P_X <- as.matrix(update_of_states(m,P,h_val,J)[[2]][1:12,1:12])
     P_U <- as.matrix(update_of_states(m,P,h_val,J)[[2]][13:14,13:14])
   }
+  
+  i <- i+1
 }
 
 # ------------
@@ -149,14 +163,19 @@ U_plot <- processed_data$U_plot
 P_plot <- processed_data$P_plot
 ymin <- P_plot$ymin
 ymax <- P_plot$ymax
-U_value <- processed_data$U_scaled
+U_scaled <- processed_data$U_scaled
 
 # Create data frame for real beta values (if available)
-real_beta_df <- data.frame(time = time_grid, real_beta = real_beta)
+if(type=='simulated'){
+  real_beta_df <- data.frame(time = time_grid, real_beta = real_beta)
+}
 
 # --------
 # Plotting
 # --------
 
+# Plot data
+plot_data(obs,type)
+
 # Plot contact rate
-plot_contact_rate(type, U_plot, ymin, ymax, U_value, real_beta_df)
+plot_contact_rate(type, U_plot, ymin, ymax, U_scaled, real_beta_df)
