@@ -146,8 +146,16 @@ if(type=='simulated'){
 # Plotting
 # --------
 
+setwd(directory_res)
+
 # Plot data
+pdf("SIR-counts.pdf")
+plot_data(obs,type)
+dev.off()
 plot_data(obs,type)
 
 # Plot contact rate
+pdf("contact-rate-with-CI.pdf")
+plot_contact_rate(type, U_plot, ymin, ymax, U_scaled, real_beta_df, gamma, eta, l)
+dev.off()
 plot_contact_rate(type, U_plot, ymin, ymax, U_scaled, real_beta_df, gamma, eta, l)
