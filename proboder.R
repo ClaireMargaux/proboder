@@ -2,27 +2,30 @@
 ################################ Claire Descombes ##############################
 ################################################################################
 
-# Import functions.
+# Import functions
 source('~/Documents/GitHub/proboder/functions_for_inference.R')
 source('~/Documents/GitHub/proboder/saving_loading_plotting.R')
 
-# Necessary packages.
+# Necessary packages
 library(Matrix)
 library(numDeriv)
 library(matrixcalc)
 library(greybox)
 library(ggplot2)
 
-# Import data (in case 'real': date-S-I-D, in case 'simulated': date-S-I-R).
+# Choose data to be imported (in case 'real': date-S-I-D, in case 'simulated': date-S-I-R)
 directory_data <- "~/Documents/GitHub/proboder/Data" # directory of data
 type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data
 region <- 'BE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'weekly' # choose either 'daily' or 'weekly' (if 'real' data selected)
 
+# Import data
 data <- load_data(type,region,daily_or_weekly,directory_data)
 obs <- data$observations
 pop <- data$population
-real_beta <- data$real_beta
+if(type == 'simulated'){
+  real_beta <- data$real_beta
+}
 
 # Sanity check.
 head(obs)
@@ -46,9 +49,9 @@ X <- as.vector(c(
 )
 
 # Fixed parameters
-gamma <- 0.4  # Recovery rate
-eta <- 0.002   # Fatality rate
-l <- 2        # Length scale
+gamma <- 0.4    # Recovery rate
+eta <- 0.002    # Fatality rate
+l <- 2          # Length scale
 
 # Drift matrices
 F_U <- matrix(c(0,-(sqrt(3)/l)^2,1,-2*sqrt(3)/l), nrow = 2, ncol = 2)
@@ -68,22 +71,19 @@ if(type == 'real'){
 }
 
 # Observation noise
-#R <- matrix(0.1, nrow = 3, ncol = 3)
 R <- cov(obs[,-1])
 
 # Noise of priors
-P_X <- matrix(0.1, nrow = 12, ncol = 12)
-P_U <- matrix(0.1, nrow = 2, ncol = 2)
+P_X <- matrix(100, nrow = 12, ncol = 12)
+P_U <- matrix(100, nrow = 2, ncol = 2)
+
+# Noise of Wiener process
+noise_wiener_U <- diag(10, nrow = ncol(L_U), ncol = ncol(L_U))
+noise_wiener_X <- diag(10, nrow = ncol(L_X), ncol = ncol(L_X))
 
 #####################################
 ############# ALGORITHM #############
 #####################################
-
-# Function parameters
-# @param recovery_rate
-# @param fatality_rate
-# @param length_scale
-# @return contact_rate
 
 # Data grid
 data_grid <- obs[,'date']
@@ -94,51 +94,17 @@ ode_grid <- data_grid # more points could be added
 # Overall time grid
 time_grid <- sort(unique(c(data_grid, ode_grid)))
 
-# Arrays to store values
-X_values <- matrix(data = NA, nrow = 12, ncol = length(time_grid))
-U_values <- matrix(data = NA, nrow = 2, ncol = length(time_grid))
-P_X_values <- array(data = NA, dim = c(12, 12, length(time_grid)))
-P_U_values <- array(data = NA, dim = c(2, 2, length(time_grid)))
-
 # Run inference.
-i <- 1
-for (loc in time_grid){
-  X_values[,i] <- as.vector(X)
-  U_values[,i] <- as.vector(U)
-  P_X_values[,,i] <- as.matrix(P_X)
-  P_U_values[,,i] <- as.matrix(P_U)
-  
-  # Prediction step.
-  U <- as.vector(prediction(U, P_U, F_U, L_U)[[1]])
-  P_U <- as.matrix(prediction(U, P_U, F_U, L_U)[[2]])
-  X <- as.vector(prediction(X, P_X, F_X, L_X)[[1]])
-  P_X <- as.matrix(prediction(X, P_X, F_X, L_X)[[2]])
-  
-  # Update of observations.
-  if (any(data_grid == loc)){
-    m <- as.vector(c(X,U))
-    P <- matrix_P(P_X,P_U)
-    y <- unlist(obs[which(obs[, 1] == loc),2:4])
-    X <- as.vector(update_of_observations(m,P,y,H,R)[[1]][1:12])
-    U <- as.vector(update_of_observations(m,P,y,H,R)[[1]][13:14])
-    P_X <- as.matrix(update_of_observations(m,P,y,H,R)[[2]][1:12,1:12])
-    P_U <- as.matrix(update_of_observations(m,P,y,H,R)[[2]][13:14,13:14])
-  }
-  
-  # Update of states.
-  if (any(ode_grid == loc)){
-    P <- matrix_P(P_X,P_U)
-    J <- jacobian_h(X,U,pop,gamma,eta)
-    m <- c(X,U)
-    h_val <- h(X,U,pop,gamma,eta)
-    X <- as.vector(update_of_states(m,P,h_val,J)[[1]][1:12])
-    U <- as.vector(update_of_states(m,P,h_val,J)[[1]][13:14])
-    P_X <- as.matrix(update_of_states(m,P,h_val,J)[[2]][1:12,1:12])
-    P_U <- as.matrix(update_of_states(m,P,h_val,J)[[2]][13:14,13:14])
-  }
-  
-  i <- i+1
-}
+inference_results <- inference(time_grid, obs,
+                               X, U, P_X, P_U, 
+                               F_X, F_U, L_X, L_U, 
+                               noise_wiener_X, noise_wiener_U,
+                               H, pop, gamma, eta)
+
+X_values <- inference_results$X_values
+U_values <- inference_results$U_values
+P_X_values <- inference_results$P_X_values
+P_U_values <- inference_results$P_U_values
 
 # ------------
 # Save results
@@ -147,8 +113,8 @@ for (loc in time_grid){
 # Specify directory for results
 directory_res = "~/Documents/GitHub/proboder/Results"
 # Save results to the specified directory
-save_matrices_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
-  
+save_results_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
+
 #####################################
 ########### VISUALIZATION ###########
 #####################################
@@ -165,6 +131,9 @@ ymin <- P_plot$ymin
 ymax <- P_plot$ymax
 U_scaled <- processed_data$U_scaled
 
+# Save process data to the specified directory
+save_processed_data(U_plot, P_plot, ymin, ymax, U_scaled, directory_res)
+
 # Create data frame for real beta values (if available)
 if(type=='simulated'){
   real_beta_df <- data.frame(time = time_grid, real_beta = real_beta)
@@ -178,4 +147,4 @@ if(type=='simulated'){
 plot_data(obs,type)
 
 # Plot contact rate
-plot_contact_rate(type, U_plot, ymin, ymax, U_scaled, real_beta_df)
+plot_contact_rate(type, U_plot, ymin, ymax, U_scaled, real_beta_df, gamma, eta, l)

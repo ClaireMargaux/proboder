@@ -37,19 +37,20 @@ load_data <- function(type, region, daily_or_weekly, directory) {
   return(list(observations = obs, population = population, real_beta = real_beta))
 }
 
-save_matrices_as_Rdata <- function(X_values, U_values, P_X_values, P_U_values, directory) {
+save_results_as_Rdata <- function(X_values, U_values, P_X_values, P_U_values, directory) {
   # Save X_values, U_values, P_X_values, and P_U_values as .Rdata files
   save(X_values, file = paste0(directory, "/X_values.Rdata"))
   save(U_values, file = paste0(directory, "/U_values.Rdata"))
   save(P_X_values, file = paste0(directory, "/P_X_values.Rdata"))
   save(P_U_values, file = paste0(directory, "/P_U_values.Rdata"))
-  
-  # Calculate sigmoid of U_values[1, ]
-  U_scaled <- round(sigmoid(U_values[1, ]),3)
-  
-  # Save sigmoid of U_values[1, ] as CSV
-  U_scaled_df <- data.frame(U_scaled)
-  write.csv(U_scaled_df, file = paste0(directory, "/U_scaled.csv"), row.names = FALSE)
+}
+
+save_processed_data <- function(U_plot, P_plot, ymin, ymax, U_scaled, directory){
+  save(U_plot, file = paste0(directory, "/U_plot.Rdata"))
+  save(P_plot, file = paste0(directory, "/P_plot.Rdata"))
+  beta_with_CI <- data.frame(U_scaled, ymin, ymax)
+  save(beta_with_CI, file = paste0(directory, "/yminmax.Rdata"))
+  write.csv(beta_with_CI, file = paste0(directory, "/beta_with_CI.csv"), row.names = FALSE)
 }
 
 load_and_process_data <- function(directory_res, time_grid) {
@@ -60,15 +61,16 @@ load_and_process_data <- function(directory_res, time_grid) {
   load(file.path(directory_res, "P_U_values.Rdata"))
   
   # Process U_values for visualization
-  U_scaled <- sigmoid(U_values[1, ])
+  U_value <- U_values[1, ]
+  U_scaled <- sigmoid(U_value)
   U_plot <- data.frame(time = time_grid, U_scaled = U_scaled, row.names = NULL)
   
   # Process P_U_values for visualization
   P_U <- P_U_values[1, 1, ]
   
   # Generate values for error area
-  ymin <- mapply(function(mu, sigma) sigmoid(qnorm(0.025, mean = mu, sd = sqrt(sigma))), U_scaled, P_U)
-  ymax <- mapply(function(mu, sigma) sigmoid(qnorm(0.975, mean = mu, sd = sqrt(sigma))), U_scaled, P_U)
+  ymin <- mapply(function(mu, sigma) sigmoid(qnorm(0.025, mean = mu, sd = sqrt(sigma))), U_value, P_U)
+  ymax <- mapply(function(mu, sigma) sigmoid(qnorm(0.975, mean = mu, sd = sqrt(sigma))), U_value, P_U)
   
   # Create data frame for P_plot
   P_plot <- data.frame(time = time_grid, ymin = ymin, ymax = ymax, row.names = NULL)
@@ -77,9 +79,7 @@ load_and_process_data <- function(directory_res, time_grid) {
   return(list(U_plot = U_plot, P_plot = P_plot, U_scaled = U_scaled))
 }
 
-plot_contact_rate <- function(type, U_plot, ymin, ymax, U_scaled, real_beta_df = NULL) {
-  library(ggplot2)
-  
+plot_contact_rate <- function(type, U_plot, ymin, ymax, U_scaled, real_beta_df = NULL, recovery_rate, fatality_rate, lengthscale) {
   if (type == 'simulated') {
     ggplot() +
       geom_line(data = U_plot, aes(x = time, y = U_scaled, color = "Estimated Contact Rate"), linewidth = 1) +
@@ -94,7 +94,10 @@ plot_contact_rate <- function(type, U_plot, ymin, ymax, U_scaled, real_beta_df =
       theme_minimal() +
       theme(legend.position = "top") +
       guides(color = guide_legend(order = 1),
-             fill = guide_legend(order = 2))
+             fill = guide_legend(order = 2)) +
+      annotate("text", x = max(U_plot$time), y = max(U_scaled), label = paste("Recovery Rate:", recovery_rate), hjust = 1, vjust = 2, size = 3) +
+      annotate("text", x = max(U_plot$time), y = max(U_scaled), label = paste("Fatality Rate:", fatality_rate), hjust = 1, vjust = 0, size = 3) +
+      annotate("text", x = max(U_plot$time), y = max(U_scaled), label = paste("Length Scale:", lengthscale), hjust = 1, vjust = 4, size = 3)
   } else {
     ggplot() +
       geom_line(data = U_plot, aes(x = time, y = U_scaled, color = "Estimated Contact Rate"), linewidth = 1) +
@@ -108,7 +111,10 @@ plot_contact_rate <- function(type, U_plot, ymin, ymax, U_scaled, real_beta_df =
       theme_minimal() +
       theme(legend.position = "top")+
       guides(color = guide_legend(order = 1),
-             fill = guide_legend(order = 2))
+             fill = guide_legend(order = 2)) +
+      annotate("text", x = max(U_plot$time), y = max(U_scaled), label = paste("Recovery Rate:", recovery_rate), hjust = 1, vjust = 2, size = 3) +
+      annotate("text", x = max(U_plot$time), y = max(U_scaled), label = paste("Fatality Rate:", fatality_rate), hjust = 1, vjust = 0, size = 3) +
+      annotate("text", x = max(U_plot$time), y = max(U_scaled), label = paste("Length Scale:", lengthscale), hjust = 1, vjust = 4, size = 3)
   }
 }
 

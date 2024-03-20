@@ -136,25 +136,27 @@ jacobian_h <- function(X, U, pop, gamma, eta) {
 #'
 #' @param m Numeric vector, the (previous) mean of U or X.
 #' @param P Numeric matrix, the (previous) covariance of U or X.
-#' @param F Numeric matrix, drift matrix of U or X.
-#' @param L Numeric matrix, dispersion matrix of U or X.
+#' @param drift Numeric matrix, drift matrix of U or X.
+#' @param dispersion Numeric matrix, dispersion matrix of U or X.
+#' @param noise_wiener Numeric matrix, noise of the Wiener process.
 #' @return A list containing the predicted mean and covariance.
 #' @export
-prediction <- function(m, P, drift, dispersion) {
+prediction <- function(m, P, drift, dispersion, noise_wiener) {
   # Arguments:
   #   m: Numeric vector, the (previous) mean of U or X.
   #   P: Numeric matrix, the (previous) covariance of U or X.
   #   drift: Numeric matrix, drift matrix of U or X.
   #   dispersion: Numeric matrix, dispersion matrix of U or X.
+  #   noise_wiener: Numeric matrix, noise of the Wiener process.
   #
   # Returns:
   #   A list containing the predicted mean and covariance.
   
+  n <- nrow(drift)
+  
   exp_F <- expm(drift)
   m_out <- as.vector(exp_F %*% m)
 
-  n <- nrow(drift); k <- ncol(dispersion)
-  noise_wiener <- diag(10, nrow = k, ncol = k)
   top_row <- cbind(drift, dispersion %*% noise_wiener %*% t(dispersion))
   bottom_row <- cbind(matrix(0, nrow = n, ncol = n), -t(drift))
   Gamma <- rbind(top_row, bottom_row)
@@ -269,4 +271,107 @@ matrix_P <- function(P_U, P_X) {
   P[(nrow_P - nrow(P_X) + 1):nrow_P, (ncol_P - ncol(P_X) + 1):ncol_P] <- P_X  # Bottom right corner
   
   return(P)
+}
+
+#' Perform inference using a state-space model
+#'
+#' This function performs inference over a specified time grid using a state-space model.
+#' It iteratively updates the state estimates and covariances based on observations and predictions.
+#'
+#' @param time_grid Numeric vector, time grid for the inference.
+#' @param obs Data frame, contains the dates and the compartment counts.
+#' @param X Vector of length 12 representing the solution of the ODE and its 2 first derivatives.
+#' @param U Vector of length 2 representing the latent parameter of the ODE and its first derivative.
+#' @param P_U Numeric matrix, predicted covariance of U.
+#' @param P_X Numeric matrix, predicted covariance of X.
+#' @param F_U Numeric matrix, drift matrix of U.
+#' @param F_X Numeric matrix, drift matrix of X.
+#' @param L_U Numeric matrix, dispersion matrix of U.
+#' @param L_U Numeric matrix, dispersion matrix of U.
+#' @param noise_wiener_U Numeric matrix, noise of the Wiener process driving U.
+#' @param noise_wiener_X Numeric matrix, noise of the Wiener process driving X.
+#' @param H Numeric matrix, noise of the observations.
+#' @param pop Integer, total population.
+#' @param gamma Numeric, recovery rate.
+#' @param eta Numeric, fatality rate.
+#'
+#' @return A list with the inferred values of X, U, P_X, and P_U.
+#' @export
+inference <- function(time_grid, obs,
+                      X, U, P_X, P_U, 
+                      F_X, F_U, L_X, L_U, 
+                      noise_wiener_X, noise_wiener_U,
+                      H, pop, gamma, eta){
+  # Arguments:
+  #   time_grid: Numeric vector, time grid for the inference.
+  #   obs: Data frame, contains the dates and the compartment counts.
+  #   X: Vector of length 12 representing the solution of the ODE and its 2 first derivatives.
+  #   U: Vector of length 2 representing the latent parameter of the ODE and its first derivative.
+  #   P_U: Numeric matrix, predicted covariance of U.
+  #   P_X: Numeric matrix, predicted covariance of X.
+  #   F_U: Numeric matrix, drift matrix of U.
+  #   F_X: Numeric matrix, drift matrix of X.
+  #   L_U: Numeric matrix, dispersion matrix of U.
+  #   L_U: Numeric matrix, dispersion matrix of U.
+  #   noise_wiener_U: Numeric matrix, noise of the Wiener process driving U.
+  #   noise_wiener_X: Numeric matrix, noise of the Wiener process driving X.
+  #   H: Numeric matrix, noise of the observations.
+  #   pop: Integer, total population.
+  #   gamma: Numeric, recovery rate.
+  #   eta: Numeric, fatality rate.
+  #
+  # Returns:
+  #   A list with the infered values of X, U, P_X and P_U.
+  
+  # Initialize lists to store inferred values
+  X_values <- matrix(data = NA, nrow = length(X), ncol = length(time_grid))
+  U_values <- matrix(data = NA, nrow = length(U), ncol = length(time_grid))
+  P_X_values <- array(data = NA, dim = c(length(X), length(X), length(time_grid)))
+  P_U_values <- array(data = NA, dim = c(length(U), length(U), length(time_grid)))
+  
+  # Iterate over each time point in the time grid
+  for (i in seq_along(time_grid)) {
+    loc <- time_grid[i]
+    
+    # Store current values and covariances
+    X_values[, i] <- X
+    U_values[, i] <- U
+    P_X_values[, , i] <- P_X
+    P_U_values[, , i] <- P_U
+    
+    # Prediction step
+    U <- as.vector(prediction(m = U, P = P_U, drift = F_U, dispersion = L_U, noise_wiener = noise_wiener_U)[[1]])
+    P_U <- as.matrix(prediction(m = U, P = P_U, drift = F_U, dispersion = L_U, noise_wiener = noise_wiener_U)[[2]])
+    X <- as.vector(prediction(m = X, P = P_X, drift = F_X, dispersion = L_X, noise_wiener = noise_wiener_X)[[1]])
+    P_X <- as.matrix(prediction(m = X, P = P_X, drift = F_X, dispersion = L_X, noise_wiener = noise_wiener_X)[[2]])
+    
+    # Update of observations if available at the current time point
+    if (any(obs$date == loc)) {
+      m <- c(X, U)
+      P <- matrix_P(P_X, P_U)
+      y <- unlist(obs[obs$date == loc, 2:4])
+      updated_obs <- update_of_observations(m = m, P = P, y = y, H = H, R = R)
+      X <- as.vector(updated_obs[[1]][1:12])
+      U <- as.vector(updated_obs[[1]][13:14])
+      P_X <- as.matrix(updated_obs[[2]][1:12, 1:12])
+      P_U <- as.matrix(updated_obs[[2]][13:14, 13:14])
+    }
+    
+    # Update of states if required at the current time point
+    if (any(ode_grid == loc)) {
+      P <- matrix_P(P_X, P_U)
+      J <- jacobian_h(X, U, pop, gamma, eta)
+      m <- c(X, U)
+      h_val <- h(X, U, pop, gamma, eta)
+      updated_states <- update_of_states(m = m, P = P, h = h_val, J = J)
+      X <- as.vector(updated_states[[1]][1:12])
+      U <- as.vector(updated_states[[1]][13:14])
+      P_X <- as.matrix(updated_states[[2]][1:12, 1:12])
+      P_U <- as.matrix(updated_states[[2]][13:14, 13:14])
+    }
+  }
+  
+  # Return inferred values
+  list(X_values = X_values, U_values = U_values, P_X_values = P_X_values, P_U_values = P_U_values)
+
 }
