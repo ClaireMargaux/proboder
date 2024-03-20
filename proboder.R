@@ -13,6 +13,9 @@ library(matrixcalc)
 library(greybox)
 library(ggplot2)
 
+# (Uncomment to) simulate new data.
+#source("~/Documents/GitHub/proboder/simulated_data.R", chdir = TRUE)
+
 # Choose data to be imported (in case 'real': date-S-I-D, in case 'simulated': date-S-I-R)
 directory_data <- "~/Documents/GitHub/proboder/Data" # directory of data
 type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data

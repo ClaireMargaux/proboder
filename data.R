@@ -3,29 +3,8 @@
 ###################################### Data ####################################
 
 directory <- "~/Documents/GitHub/proboder/Data" # directory for data
-type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data
 region <- 'GE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly' (if 'real' data selected)
-
-################################
-####### SIMULATED DATA #########
-################################
-
-library(HETTMO)
-params_unstratified = set_parameters()
-params_unstratified$p_detect1 <- 1
-params_unstratified$p_detect2 <- 1
-population_simulate <- params_unstratified$popsize
-simulate <- simulate_data(params = params_unstratified, ts = 1:45)
-I <- simulate[[1]]
-S <- rep(0,length(I))
-for (i in 1:length(I)){
-  S[i] <- population_simulate - sum(I[1:i])
-}
-R <- simulate[[6]]
-real_beta <- simulate[[3]]
-date <- 1:length(S)
-observations_simulate <- data.frame(date,S,I,R)
 
 ################################
 ########## REAL DATA ###########
@@ -132,13 +111,7 @@ n <- nrow(observations) # size of data_grid
 ######## SAVE THE DATA #########
 ################################
 
-if (type == 'simulated') {
-  save(observations_simulate, file = file.path(directory, "simulated_data.Rdata"))
-  saveRDS(population_simulate, file = file.path(directory, "simulated_pop.Rds"))
-  saveRDS(real_beta, file = file.path(directory, "simulated_real_beta.Rds"))
-} else {
-  region_filename <- paste0("real_data_", region, "_", daily_or_weekly, ".Rdata")
-  population_filename <- paste0("real_pop_", region, "_", daily_or_weekly, ".Rds")
-  save(observations, file = file.path(directory, region_filename))
-  saveRDS(population, file = file.path(directory, population_filename))
-}
+region_filename <- paste0("real_data_", region, "_", daily_or_weekly, ".Rdata")
+population_filename <- paste0("real_pop_", region, "_", daily_or_weekly, ".Rds")
+save(observations, file = file.path(directory, region_filename))
+saveRDS(population, file = file.path(directory, population_filename))
