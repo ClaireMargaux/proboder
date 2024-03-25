@@ -73,3 +73,13 @@ jacobian_X <- function(X,U,pop,gamma,eta){
   
   return(sol)
 }
+
+
+expanded_grid <- c()
+for (i in 1:(length(data_grid) - 1)) {
+  expanded_grid <- c(expanded_grid, data_grid[i])
+  new_point <- seq(data_grid[i], data_grid[i + 1], by = 0.5)[-1]
+  expanded_grid <- c(expanded_grid, new_point)
+}
+expanded_grid <- c(expanded_grid, tail(data_grid, 1))
+ode_grid <- expanded_grid # mid-points added to data_grid

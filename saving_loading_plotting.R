@@ -45,9 +45,10 @@ save_results_as_Rdata <- function(X_values, U_values, P_X_values, P_U_values, di
   save(P_U_values, file = paste0(directory, "/P_U_values.Rdata"))
 }
 
-save_processed_data <- function(U_plot, P_plot, ymin, ymax, U_scaled, directory){
+save_processed_data <- function(U_plot, P_plot, ymin, ymax, U_scaled, Xval, directory){
   save(U_plot, file = paste0(directory, "/U_plot.Rdata"))
   save(P_plot, file = paste0(directory, "/P_plot.Rdata"))
+  save(Xval, file = paste0(directory, "/Xval.Rdata"))
   beta_with_CI <- data.frame(U_scaled, ymin, ymax)
   save(beta_with_CI, file = paste0(directory, "/yminmax.Rdata"))
   write.csv(beta_with_CI, file = paste0(directory, "/beta_with_CI.csv"), row.names = FALSE)
@@ -68,6 +69,11 @@ load_and_process_data <- function(directory_res, time_grid) {
   # Process P_U_values for visualization
   P_U <- P_U_values[1, 1, ]
   
+  # Process X_values for visualization
+  X <- t(X_values[1:4, ])
+  Xval <- data.frame(time = time_grid, X=X, row.names = NULL)
+  colnames(Xval) <- c("time_grid","S","I","R","D")
+  
   # Generate values for error area
   ymin <- mapply(function(mu, sigma) sigmoid(qnorm(0.025, mean = mu, sd = sqrt(sigma))), U_value, P_U)
   ymax <- mapply(function(mu, sigma) sigmoid(qnorm(0.975, mean = mu, sd = sqrt(sigma))), U_value, P_U)
@@ -76,7 +82,7 @@ load_and_process_data <- function(directory_res, time_grid) {
   P_plot <- data.frame(time = time_grid, ymin = ymin, ymax = ymax, row.names = NULL)
   
   # Return processed data
-  return(list(U_plot = U_plot, P_plot = P_plot, U_scaled = U_scaled))
+  return(list(U_plot = U_plot, P_plot = P_plot, U_scaled = U_scaled, Xval = Xval))
 }
 
 plot_contact_rate <- function(type, U_plot, ymin, ymax, U_scaled, real_beta_df = NULL, recovery_rate, fatality_rate, lengthscale) {
@@ -118,39 +124,52 @@ plot_contact_rate <- function(type, U_plot, ymin, ymax, U_scaled, real_beta_df =
   }
 }
 
-plot_data <- function(obs, type) {
-  # Adjust variable names and labels based on type
-  if (type == 'simulated') {
+plot_data <- function(obs, Xval, model) {
+  # Adjust variable names and labels based on model
+  if (model == 'SIR') {
     S_var <- 'S'
     I_var <- 'I'
     R_var <- 'R'
     legend_labels <- c("Susceptible", "Infected", "Recovered")
-    plot_title <- "S, I and R counts"
-  } else if (type == 'real') {
+  } else if (model == 'SID') {
     S_var <- 'S'
     I_var <- 'I'
-    R_var <- 'D'  # Assuming 'D' represents 'Deaths' in real data
+    R_var <- 'D'
     legend_labels <- c("Susceptible", "Infected", "Deaths")
-    plot_title <- "S, I and D counts"
   } else {
-    stop("Invalid type. Please specify 'simulated' or 'real'.")
+    stop("Invalid model. Please specify 'SIR' or 'SID'.")
   }
   
-  obs[[S_var]] <- obs[[S_var]] + 0.01
-  obs[[I_var]] <- obs[[I_var]] + 0.01
-  obs[[R_var]] <- obs[[R_var]] + 0.01
-
-  cols <- c("S" = "darkblue", 
-            "I" = "coral3", 
-            "R" = "darkgreen")
-    
+  plot_title <- "S, I, R and D counts"
+  
+  # Log-transform values (add a small value to avoid log of zero)
+  obs[[S_var]] <- log(obs[[S_var]] + 0.01)
+  obs[[I_var]] <- log(obs[[I_var]] + 0.01)
+  obs[[R_var]] <- log(obs[[R_var]] + 0.01)
+  Xval[["S"]] <- log(pmax(Xval[["S"]],0) + 0.01)
+  Xval[["I"]] <- log(pmax(Xval[["I"]],0) + 0.01)
+  Xval[["R"]] <- log(pmax(Xval[["R"]],0) + 0.01)
+  Xval[["D"]] <- log(pmax(Xval[["D"]],0) + 0.01)
+  
+  cols <- c("S" = "pink", 
+            "I" = "lightblue", 
+            "R" = "lightgreen",
+            "D" = "darkgreen")
+  
   ggplot() +
-    geom_line(data = obs, aes(x = date, y = .data[[S_var]], color = "S"), linewidth = 1) +
-    geom_line(data = obs, aes(x = date, y = .data[[I_var]], color = "I"), linewidth = 1) +
-    geom_line(data = obs, aes(x = date, y = .data[[R_var]], color = "R"), linewidth = 1) +
-    scale_y_log10() +  # Log scale for y-axis
+    geom_line(data = obs, aes(x = date, y = .data[[S_var]], color = "S", linetype = "Data"), linewidth = 1) +
+    geom_line(data = obs, aes(x = date, y = .data[[I_var]], color = "I", linetype = "Data"), linewidth = 1) +
+    geom_line(data = obs, aes(x = date, y = .data[[R_var]], color = "R", linetype = "Data"), linewidth = 1) +
+    geom_line(data = Xval, aes(x = time_grid, y = .data[["S"]], color = "S", linetype = "Inferred"), linewidth = 1) +
+    geom_line(data = Xval, aes(x = time_grid, y = .data[["I"]], color = "I", linetype = "Inferred"), linewidth = 1) +
+    geom_line(data = Xval, aes(x = time_grid, y = .data[["R"]], color = "R", linetype = "Inferred"), linewidth = 1) +
+    geom_line(data = Xval, aes(x = time_grid, y = .data[["D"]], color = "D", linetype = "Inferred"), linewidth = 1) +
     labs(x = "Date", y = "Count (log-scale)", title = plot_title) +
     theme_minimal() +
     scale_color_manual(values = cols,
-                       name = "Compartment")
+                       name = "Compartments") +
+    scale_linetype_manual(values = c("Data" = "dotdash", "Inferred" = "solid"),
+                          name = "Lines",
+                          labels = c("Data (Observed)", "Inferred (Simulated)"),
+                          guide = guide_legend(override.aes = list(color = "grey")))
 }

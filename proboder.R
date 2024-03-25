@@ -13,14 +13,14 @@ library(matrixcalc)
 library(greybox)
 library(ggplot2)
 
-# (Uncomment to) simulate new data.
-#source("~/Documents/GitHub/proboder/simulated_data.R", chdir = TRUE)
-
 # Choose data to be imported (in case 'real': date-S-I-D, in case 'simulated': date-S-I-R)
 directory_data <- "~/Documents/GitHub/proboder/Data" # directory of data
 type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data
 region <- 'BE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'weekly' # choose either 'daily' or 'weekly' (if 'real' data selected)
+
+# Set model type
+model <- if(type == 'simulated'){"SIR"}else{"SID"}
 
 # Import data
 data <- load_data(type,region,daily_or_weekly,directory_data)
@@ -39,22 +39,22 @@ summary(obs)
 #####################################
 
 # Initialize latent parameter (contact rate) and its first derivative
+beta0 <- 0.99 # Initial value for contact rate, has to be in (0,1)
 U <- as.vector(c(
-  logit(0.99), # Initial value for contact rate
-  0) # Initial values for 1st derivative
+  logit(beta0), # Initial value for contact rate rescaled to the real line
+  -2.5) # Initial value for 1st derivative
 )
 
 # Initialize solution of SIRD-ODE and its two first derivatives
-X <- as.vector(c(
-  c(obs[1,2], rep(0,3), # Initial values for S, I, and R or D
-  rep(0.1,4), # Initial values for 1st derivatives
-  rep(0,4))) # Initial values for 2nd derivatives
-)
+X0 <- c(obs[1,2], obs[1,3], 0, 0) # Initial values for S, I, and R or D
+X1 <- f(X0, beta0, pop, gamma, eta) # Initial values for 1st derivatives
+X2 <- diag(jacobian_f(X0, beta0, pop, gamma, eta)) # Initial values for 2nd derivatives
+X <- as.vector(c(X0,X1,X2))
 
 # Fixed parameters
-gamma <- 0.4    # Recovery rate
-eta <- 0.002    # Fatality rate
-l <- 2          # Length scale
+gamma <- 0.4   # Recovery rate
+eta <- 0       # Fatality rate
+l <- 8         # Length scale
 
 # Drift matrices
 F_U <- matrix(c(0,-(sqrt(3)/l)^2,1,-2*sqrt(3)/l), nrow = 2, ncol = 2)
@@ -65,24 +65,24 @@ L_U <- matrix(c(0,1), nrow = 2, ncol = 1)
 L_X <- as.matrix(sparseMatrix(i = 9:12, j = 1:4, x = 1, dims = c(12,4)))
 
 # Observation matrix (for observation of S,I, and R or D)
-if(type == 'real'){
+if(model == 'SID'){
   H <- as.matrix(sparseMatrix(i = c(1,2,3), j = c(1,2,4), x = 1, dims = c(3,14)))
-}else if(type == 'simulated'){
+}else if(model == 'SIR'){
   H <- as.matrix(sparseMatrix(i = c(1,2,3), j = c(1,2,3), x = 1, dims = c(3,14)))
 }else{
-  print('Wrong type!')
+  print('Wrong model type!')
 }
 
 # Observation noise
 R <- cov(obs[,-1])
 
 # Noise of priors
-P_X <- matrix(100, nrow = 12, ncol = 12)
-P_U <- matrix(100, nrow = 2, ncol = 2)
+P_U <- matrix(0, nrow = 2, ncol = 2)
+P_X <- matrix(0, nrow = 12, ncol = 12)
 
 # Noise of Wiener process
-noise_wiener_U <- diag(10, nrow = ncol(L_U), ncol = ncol(L_U))
-noise_wiener_X <- diag(10, nrow = ncol(L_X), ncol = ncol(L_X))
+noise_wiener_U <- diag(0.01, nrow = ncol(L_U), ncol = ncol(L_U))
+noise_wiener_X <- diag(0.01, nrow = ncol(L_X), ncol = ncol(L_X))
 
 #####################################
 ############# ALGORITHM #############
@@ -92,7 +92,7 @@ noise_wiener_X <- diag(10, nrow = ncol(L_X), ncol = ncol(L_X))
 data_grid <- obs[,'date']
 
 # ODE grid
-ode_grid <- data_grid # more points could be added
+ode_grid <- data_grid # no more points than observations
 
 # Overall time grid
 time_grid <- sort(unique(c(data_grid, ode_grid)))
@@ -133,13 +133,14 @@ P_plot <- processed_data$P_plot
 ymin <- P_plot$ymin
 ymax <- P_plot$ymax
 U_scaled <- processed_data$U_scaled
+Xval <- processed_data$Xval
 
-# Save process data to the specified directory
-save_processed_data(U_plot, P_plot, ymin, ymax, U_scaled, directory_res)
+# Save processed data to the specified directory
+save_processed_data(U_plot, P_plot, ymin, ymax, U_scaled, Xval, directory_res)
 
 # Create data frame for real beta values (if available)
 if(type=='simulated'){
-  real_beta_df <- data.frame(time = time_grid, real_beta = real_beta)
+  real_beta_df <- data.frame(time = data_grid, real_beta = real_beta)
 }
 
 # --------
@@ -150,9 +151,9 @@ setwd(directory_res)
 
 # Plot data
 pdf("SIR-counts.pdf")
-plot_data(obs,type)
+plot_data(obs,Xval,model)
 dev.off()
-plot_data(obs,type)
+plot_data(obs,Xval,model)
 
 # Plot contact rate
 pdf("contact-rate-with-CI.pdf")

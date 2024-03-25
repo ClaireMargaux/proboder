@@ -68,6 +68,34 @@ f <- function(X0, beta, pop, gamma, eta) {
   return(sol)
 }
 
+#' Jacobian of the ODE function using jacobian function
+#'
+#' This function calculates the Jacobian matrix of the ODE function using the jacobian function.
+#'
+#' @param X0 Numeric vector of size 4 representing the solution of the ODE.
+#' @param beta Numeric value representing the latent parameter of the ODE.
+#' @param pop Integer representing the total population.
+#' @param gamma Numeric value representing the recovery rate.
+#' @param eta Numeric value representing the fatality rate.
+#' @return The Jacobian matrix of the ODE function.
+#' @export
+jacobian_f <- function(X0, beta, pop, gamma, eta) {
+  # Arguments:
+  #   X0: Numeric vector of size 4, solution of the ODE
+  #   beta: Numeric with values in [0,1], latent parameter of the ODE
+  #   pop: Integer, total population
+  #   gamma: Numeric, recovery rate
+  #   eta: Numeric, fatality rate
+  #
+  # Returns:
+  #   The Jacobian matrix of the ODE function
+  
+  f1 <- function(X0) f(X0, beta = beta, pop = pop, gamma = gamma, eta = eta)
+  f2 <- function(beta) f(X0 = X0, beta, pop = pop, gamma = gamma, eta = eta)
+  out <- cbind(jacobian(f1, x = X0), jacobian(f2, x = beta))
+  return(out)
+}
+
 #' Measurement model
 #'
 #' This function evaluates the measurement model for a given set of parameters.
@@ -321,7 +349,7 @@ inference <- function(time_grid, obs,
   #   eta: Numeric, fatality rate.
   #
   # Returns:
-  #   A list with the infered values of X, U, P_X and P_U.
+  #   A list with the inferred values of X, U, P_X and P_U.
   
   # Initialize lists to store inferred values
   X_values <- matrix(data = NA, nrow = length(X), ncol = length(time_grid))
@@ -373,5 +401,4 @@ inference <- function(time_grid, obs,
   
   # Return inferred values
   list(X_values = X_values, U_values = U_values, P_X_values = P_X_values, P_U_values = P_U_values)
-
 }
