@@ -1,7 +1,3 @@
-#################################### PROBODER ##################################
-################################ Claire Descombes ##############################
-############################ Functions for inference ###########################
-
 #' Sigmoid function
 #'
 #' Calculate the sigmoid (logistic) function for the given input.
@@ -308,31 +304,16 @@ matrix_P <- function(P_U, P_X) {
 #'
 #' @param time_grid Numeric vector, time grid for the inference.
 #' @param obs Data frame, contains the dates and the compartment counts.
-#' @param X Vector of length 12 representing the solution of the ODE and its 2 first derivatives.
-#' @param U Vector of length 2 representing the latent parameter of the ODE and its first derivative.
-#' @param P_U Numeric matrix, predicted covariance of U.
-#' @param P_X Numeric matrix, predicted covariance of X.
-#' @param F_U Numeric matrix, drift matrix of U.
-#' @param F_X Numeric matrix, drift matrix of X.
-#' @param L_U Numeric matrix, dispersion matrix of U.
-#' @param L_U Numeric matrix, dispersion matrix of U.
-#' @param noise_wiener_U Numeric matrix, noise of the Wiener process driving U.
-#' @param noise_wiener_X Numeric matrix, noise of the Wiener process driving X.
-#' @param H Numeric matrix, noise of the observations.
-#' @param pop Integer, total population.
-#' @param gamma Numeric, recovery rate.
-#' @param eta Numeric, fatality rate.
+#' @param initial_params List of initial parameters obtained from the initialization function.
 #'
 #' @return A list with the inferred values of X, U, P_X, and P_U.
 #' @export
-inference <- function(time_grid, obs,
-                      X, U, P_X, P_U, 
-                      F_X, F_U, L_X, L_U, 
-                      noise_wiener_X, noise_wiener_U,
-                      H, pop, gamma, eta){
+inference <- function(time_grid, obs, initial_params){
   # Arguments:
   #   time_grid: Numeric vector, time grid for the inference.
   #   obs: Data frame, contains the dates and the compartment counts.
+  #   initial_params: List of initial parameters obtained from the initialization function, has the following entries:
+  #
   #   X: Vector of length 12 representing the solution of the ODE and its 2 first derivatives.
   #   U: Vector of length 2 representing the latent parameter of the ODE and its first derivative.
   #   P_U: Numeric matrix, predicted covariance of U.
@@ -350,6 +331,21 @@ inference <- function(time_grid, obs,
   #
   # Returns:
   #   A list with the inferred values of X, U, P_X and P_U.
+  
+  X <- initial_params$X
+  U <- initial_params$U
+  P_X <- initial_params$P_X
+  P_U <- initial_params$P_U
+  F_X <- initial_params$F_X
+  F_U <- initial_params$F_U
+  L_X <- initial_params$L_X
+  L_U <- initial_params$L_U
+  noise_wiener_X <- initial_params$noise_wiener_X
+  noise_wiener_U <- initial_params$noise_wiener_U
+  H <- initial_params$H
+  pop <- initial_params$pop
+  gamma <- initial_params$gamma
+  eta <- initial_params$eta
   
   # Initialize lists to store inferred values
   X_values <- matrix(data = NA, nrow = length(X), ncol = length(time_grid))

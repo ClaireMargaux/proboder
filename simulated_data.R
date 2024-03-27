@@ -1,12 +1,8 @@
-#################################### PROBODER ##################################
-################################ Claire Descombes ##############################
-###################################### Data ####################################
-
-directory <- "~/Documents/GitHub/proboder/Data" # directory for data
-
 ################################
 ####### SIMULATED DATA #########
 ################################
+
+directory <- "~/Documents/GitHub/proboder/Data" # directory for data
 
 library(HETTMO)
 params_unstratified = set_parameters()

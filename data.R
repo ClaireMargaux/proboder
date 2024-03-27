@@ -1,14 +1,10 @@
-#################################### PROBODER ##################################
-################################ Claire Descombes ##############################
-###################################### Data ####################################
+################################
+########## REAL DATA ###########
+################################
 
 directory <- "~/Documents/GitHub/proboder/Data" # directory for data
 region <- 'GE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly' (if 'real' data selected)
-
-################################
-########## REAL DATA ###########
-################################
 
 # Import dataset.
 setwd("~/Documents/GitHub/proboder/data_covid_dashboard/sources-csv/data")
@@ -95,17 +91,6 @@ observations$deaths[is.na(observations$deaths)] <- 0
 colnames(observations) <- c('date','S','I','D')
 
 n <- nrow(observations) # size of data_grid
-
-################################
-####### TRAIN/VAL SETS #########
-################################
-
-#' Train and validation sets.
-#' set.seed(123)
-#' indices <- seq_len(n)
-#' train_indices <- sample(indices, size = 0.8 * n, replace = FALSE)
-#' train_set <- observations[train_indices, ]
-#' validation_set <- observations[-train_indices, ]
 
 ################################
 ######## SAVE THE DATA #########

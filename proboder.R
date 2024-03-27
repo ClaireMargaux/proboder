@@ -1,17 +1,17 @@
-#################################### PROBODER ##################################
-################################ Claire Descombes ##############################
-################################################################################
+#####################################
+############# WORKFLOW ##############
+#####################################
 
 # Import functions
+source('~/Documents/GitHub/proboder/initialization.R')
 source('~/Documents/GitHub/proboder/functions_for_inference.R')
 source('~/Documents/GitHub/proboder/saving_loading_plotting.R')
 
 # Necessary packages
-library(Matrix)
-library(numDeriv)
-library(matrixcalc)
-library(greybox)
-library(ggplot2)
+library(Matrix) # for sparseMatrix()
+library(numDeriv) # for jacobian()
+library(matrixcalc) # for svd.inverse()
+library(ggplot2) # for ggplot()
 
 # Choose data to be imported (in case 'real': date-S-I-D, in case 'simulated': date-S-I-R)
 directory_data <- "~/Documents/GitHub/proboder/Data" # directory of data
@@ -38,51 +38,11 @@ summary(obs)
 ########## INITIALIZATION ###########
 #####################################
 
-# Initialize latent parameter (contact rate) and its first derivative
-beta0 <- 0.99 # Initial value for contact rate, has to be in (0,1)
-U <- as.vector(c(
-  logit(beta0), # Initial value for contact rate rescaled to the real line
-  -2.5) # Initial value for 1st derivative
-)
-
-# Initialize solution of SIRD-ODE and its two first derivatives
-X0 <- c(obs[1,2], obs[1,3], 0, 0) # Initial values for S, I, and R or D
-X1 <- f(X0, beta0, pop, gamma, eta) # Initial values for 1st derivatives
-X2 <- diag(jacobian_f(X0, beta0, pop, gamma, eta)) # Initial values for 2nd derivatives
-X <- as.vector(c(X0,X1,X2))
-
-# Fixed parameters
-gamma <- 0.4   # Recovery rate
-eta <- 0       # Fatality rate
-l <- 8         # Length scale
-
-# Drift matrices
-F_U <- matrix(c(0,-(sqrt(3)/l)^2,1,-2*sqrt(3)/l), nrow = 2, ncol = 2)
-F_X <- as.matrix(sparseMatrix(i = 1:8, j = 5:12, x = 1, dims = c(12,12)))
-
-# Dispersion matrices
-L_U <- matrix(c(0,1), nrow = 2, ncol = 1)
-L_X <- as.matrix(sparseMatrix(i = 9:12, j = 1:4, x = 1, dims = c(12,4)))
-
-# Observation matrix (for observation of S,I, and R or D)
-if(model == 'SID'){
-  H <- as.matrix(sparseMatrix(i = c(1,2,3), j = c(1,2,4), x = 1, dims = c(3,14)))
-}else if(model == 'SIR'){
-  H <- as.matrix(sparseMatrix(i = c(1,2,3), j = c(1,2,3), x = 1, dims = c(3,14)))
-}else{
-  print('Wrong model type!')
-}
-
-# Observation noise
-R <- cov(obs[,-1])
-
-# Noise of priors
-P_U <- matrix(0, nrow = 2, ncol = 2)
-P_X <- matrix(0, nrow = 12, ncol = 12)
-
-# Noise of Wiener process
-noise_wiener_U <- diag(0.01, nrow = ncol(L_U), ncol = ncol(L_U))
-noise_wiener_X <- diag(0.01, nrow = ncol(L_X), ncol = ncol(L_X))
+initial_params <- 
+  initialization(model, obs, 
+                 beta0 = 0.99, beta0prime = -2.5, 
+                 gamma = 0.4, eta = 0, 
+                 l = 8, pop)
 
 #####################################
 ############# ALGORITHM #############
@@ -98,11 +58,7 @@ ode_grid <- data_grid # no more points than observations
 time_grid <- sort(unique(c(data_grid, ode_grid)))
 
 # Run inference.
-inference_results <- inference(time_grid, obs,
-                               X, U, P_X, P_U, 
-                               F_X, F_U, L_X, L_U, 
-                               noise_wiener_X, noise_wiener_U,
-                               H, pop, gamma, eta)
+inference_results <- inference(time_grid, obs, initial_params)
 
 X_values <- inference_results$X_values
 U_values <- inference_results$U_values
