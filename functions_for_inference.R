@@ -342,6 +342,7 @@ inference <- function(time_grid, obs, initial_params){
   L_U <- initial_params$L_U
   noise_wiener_X <- initial_params$noise_wiener_X
   noise_wiener_U <- initial_params$noise_wiener_U
+  R <- initial_params$R
   H <- initial_params$H
   pop <- initial_params$pop
   gamma <- initial_params$gamma

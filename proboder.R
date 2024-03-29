@@ -42,7 +42,8 @@ initial_params <-
   initialization(model, obs, 
                  beta0 = 0.99, beta0prime = -2.5, 
                  gamma = 0.4, eta = 0, 
-                 l = 8, pop)
+                 l = 4, noise_wiener = 0.1,
+                 pop)
 
 #####################################
 ############# ALGORITHM #############
@@ -106,13 +107,17 @@ if(type=='simulated'){
 setwd(directory_res)
 
 # Plot data
-pdf("SIR-counts.pdf")
+pdf("SIR-counts.pdf", width = 8, height = 6)
 plot_data(obs,Xval,model)
 dev.off()
 plot_data(obs,Xval,model)
 
+eta <- initial_params$eta
+gamma <- initial_params$gamma
+l <- initial_params$l
+
 # Plot contact rate
-pdf("contact-rate-with-CI.pdf")
+pdf("contact-rate-with-CI.pdf", width = 8, height = 6)
 plot_contact_rate(type, U_plot, ymin, ymax, U_scaled, real_beta_df, gamma, eta, l)
 dev.off()
 plot_contact_rate(type, U_plot, ymin, ymax, U_scaled, real_beta_df, gamma, eta, l)

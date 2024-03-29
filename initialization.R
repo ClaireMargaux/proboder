@@ -9,10 +9,11 @@
 #' @param gamma Recovery rate.
 #' @param eta Fatality rate.
 #' @param l Length scale.
+#' @param noise_wiener Noise of the Wiener processes.
 #' @param pop Population.
 #' @return A list containing initialized parameters and matrices.
 #' @export
-initialization <- function(model, obs, beta0, beta0prime, gamma = 0, eta = 0, l = 1, pop){
+initialization <- function(model, obs, beta0, beta0prime, gamma = 0, eta = 0, l = 1, noise_wiener = 0.1, pop){
 
   # Initialize latent parameter (contact rate) and its first derivative
   U <- as.vector(c(
@@ -57,13 +58,13 @@ initialization <- function(model, obs, beta0, beta0prime, gamma = 0, eta = 0, l 
   P_X <- matrix(0, nrow = 12, ncol = 12)
   
   # Noise of Wiener process
-  noise_wiener_U <- diag(0.01, nrow = ncol(L_U), ncol = ncol(L_U))
-  noise_wiener_X <- diag(0.01, nrow = ncol(L_X), ncol = ncol(L_X))
+  noise_wiener_U <- diag(noise_wiener, nrow = ncol(L_U), ncol = ncol(L_U))
+  noise_wiener_X <- diag(noise_wiener, nrow = ncol(L_X), ncol = ncol(L_X))
   
   out <- list(X = X, U = U, P_X = P_X, P_U = P_U, 
               F_X = F_X, F_U = F_U, L_X = L_X, L_U = L_U, 
               noise_wiener_X = noise_wiener_X, noise_wiener_U = noise_wiener_U,
-              H = H, pop = pop, gamma = gamma, eta = eta)
+              R = R, H = H, pop = pop, gamma = gamma, eta = eta, l = l)
   
   return(out)
 }
