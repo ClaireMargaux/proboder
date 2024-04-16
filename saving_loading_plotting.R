@@ -146,13 +146,13 @@ save_processed_data <- function(U_plot, P_plot, ymin, ymax, U_scaled, Xval, dire
 plot_contact_rate <- function(type, U_plot, ymin, ymax, U_scaled, real_beta_df = NULL, recovery_rate, fatality_rate, lengthscale) {
   if (type == 'simulated') {
     ggplot() +
-      geom_line(data = U_plot, aes(x = time, y = U_scaled, color = "Estimated Contact Rate"), linewidth = 1) +
-      geom_line(data = real_beta_df, aes(x = time, y = real_beta, color = "Real Contact Rate"), linetype = "dashed") +
+      geom_line(data = U_plot, aes(x = time, y = U_scaled, color = "Inferred contact rate"), linewidth = 1) +
+      geom_line(data = real_beta_df, aes(x = time, y = real_beta, color = "Real (simulated) contact rate"), linetype = "dashed") +
       geom_ribbon(data = data.frame(time = U_plot$time, ymin = ymin, ymax = ymax), aes(x = time, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
       labs(x = "Time", y = "Contact rate", title = "Contact rate with 95%-confidence interval",
            color = "Legend") +  
-      scale_color_manual(values = c("Estimated Contact Rate" = "darkgreen", "Real Contact Rate" = "lightblue4"),
-                         labels = c("Estimated Contact Rate", "Real Contact Rate"), name = "Lines") + 
+      scale_color_manual(values = c("Inferred contact rate" = "darkgreen", "Real (simulated) contact rate" = "lightblue4"),
+                         labels = c("Inferred contact rate", "Real (simulated) contact rate"), name = "Lines") + 
       scale_fill_manual(values = c("Error Area" = "lightgreen"),
                         labels = "95%-confidence interval", name = "Ribbon") +
       theme_minimal() +
@@ -164,12 +164,12 @@ plot_contact_rate <- function(type, U_plot, ymin, ymax, U_scaled, real_beta_df =
       annotate("text", x = max(U_plot$time), y = max(U_scaled), label = paste("Length Scale:", lengthscale), hjust = 1, vjust = 4, size = 3)
   } else {
     ggplot() +
-      geom_line(data = U_plot, aes(x = time, y = U_scaled, color = "Estimated Contact Rate"), linewidth = 1) +
+      geom_line(data = U_plot, aes(x = time, y = U_scaled, color = "Inferred contact rate"), linewidth = 1) +
       geom_ribbon(data = data.frame(time = U_plot$time, ymin = ymin, ymax = ymax), aes(x = time, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
       labs(x = "Time", y = "Contact rate", title = "Contact rate with 95%-confidence interval",
            color = "Legend") +  
-      scale_color_manual(values = c("Estimated Contact Rate" = "darkgreen"),
-                         labels = "Estimated Contact Rate", name = "Line") +  
+      scale_color_manual(values = c("Inferred contact rate" = "darkgreen"),
+                         labels = "Inferred contact rate", name = "Line") +  
       scale_fill_manual(values = c("Error Area" = "lightgreen"),
                         labels = "95%-confidence interval", name = "Ribbon") +
       theme_minimal() +
@@ -237,6 +237,6 @@ plot_data <- function(obs, Xval, model) {
                        name = "Compartments") +
     scale_linetype_manual(values = c("Data" = "dotdash", "Inferred" = "solid"),
                           name = "Lines",
-                          labels = c("Data (Observed)", "Inferred (Simulated)"),
+                          labels = c("Real data (simulated)", "Inferred data"),
                           guide = guide_legend(override.aes = list(color = "grey")))
 }
