@@ -8,58 +8,89 @@ source('~/Documents/GitHub/proboder/functions_for_inference.R')
 source('~/Documents/GitHub/proboder/saving_loading_plotting.R')
 
 # Necessary packages
-library(Matrix) # for sparseMatrix()
+library(Matrix) # for sparseMatrix() and expm()
 library(numDeriv) # for jacobian()
 library(matrixcalc) # for svd.inverse()
 library(ggplot2) # for ggplot()
 
-# Choose data to be imported (in case 'real': date-S-I-D, in case 'simulated': date-S-I-R)
-directory_data <- "~/Documents/GitHub/proboder/Data" # directory of data
-type <- 'simulated' # set 'real' for real data, 'simulated' for simulated data
+# Choose data to be imported
+type <- 'simulated_LSODA' # set 'real' for real data, 'simulated_LSODA' for simulated data using LSODA, and 'simulated_HETTMO' for simulated data using HETTMO
 region <- 'BE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'weekly' # choose either 'daily' or 'weekly' (if 'real' data selected)
-
-# Set model type
-model <- if(type == 'simulated'){"SIR"}else{"SID"}
+if(type == 'simulated_LSODA'){
+  directory_data <- "~/Documents/GitHub/proboder/Data/LSODA" # directory of data
+}else if(type == 'simulated_HETTMO'){
+  directory_data <- "~/Documents/GitHub/proboder/Data/HETTMO" # directory of data
+}else if(type == 'real'){
+  directory_data <- "~/Documents/GitHub/proboder/Data/real" # directory of data
+}
 
 # Import data
 data <- load_data(type,region,daily_or_weekly,directory_data)
-obs <- data$observations
-pop <- data$population
-if(type == 'simulated'){
+obs <- data$obs
+obs_with_noise <- data$obs_with_noise
+params <- data$params
+if(type != 'real'){
   real_beta <- data$real_beta
 }
 
 # Sanity check.
 head(obs)
-summary(obs)
 
 #####################################
 ########## INITIALIZATION ###########
 #####################################
 
+# If using data simulated with LSODA:
+# lambda = 0.6, gamma = 0.4, eta = 0.2, noise_obs = 0.1
+# beta0 = 0.5, beta0prime = 0.3
+# pop = 1000
+
 initial_params <- 
-  initialization(model, obs, 
-                 beta0 = 0.99, beta0prime = -2.5, 
-                 gamma = 0.4, eta = 0, 
-                 l = 4, noise_wiener = 0.1,
-                 pop)
+  initialization(obs_with_noise, beta0 = 0.5, beta0prime = 0.3, 
+                 lambda = 0.6, gamma = 0.4, eta = 0.2, 
+                 l = 1.2, scale = 1, noise_obs = 0.1,
+                 noise_wiener_X = 100, noise_wiener_U = 10,
+                 pop = 1000)
+
+# If using data simulated with HETTMO:
+# lambda = 0.3703704, gamma = 0.3703704, eta = 0
+# pop = 1e+05
+
+# initial_params <- 
+#   initialization(obs, beta0 = 0.9721224, beta0prime = -1.5, 
+#                  lambda = 0.3703704, gamma = 0.3703704, eta = 0, 
+#                  l = 1.2, scale = 3, noise_obs = 100,
+#                  noise_wiener_X = 1e+03, noise_wiener_U = 0.1,
+#                  pop = 1e+05)
 
 #####################################
 ############# ALGORITHM #############
 #####################################
 
 # Data grid
-data_grid <- obs[,'date']
+data_grid <- obs[,'t']
 
 # ODE grid
 ode_grid <- data_grid # no more points than observations
 
+# Adding more points than observations
+#num_points_between <- 2
+#for (i in 1:(length(data_grid) - 1)) {
+  # Generate equidistant points between the current and next data point
+  #equidistant_points <- seq(data_grid[i], data_grid[i + 1], length.out = num_points_between + 2)[-c(1, num_points_between + 2)]
+  # Append the equidistant points to the ODE grid
+  #ode_grid <- c(ode_grid, equidistant_points)
+#}
+
 # Overall time grid
 time_grid <- sort(unique(c(data_grid, ode_grid)))
 
-# Run inference.
-inference_results <- inference(time_grid, obs, initial_params)
+# Time steps
+steps <- ode_grid[2]-ode_grid[1]
+
+# Run inference
+inference_results <- inference(time_grid, data_grid, ode_grid, steps, obs, initial_params)
 
 X_values <- inference_results$X_values
 U_values <- inference_results$U_values
@@ -96,7 +127,7 @@ Xval <- processed_data$Xval
 save_processed_data(U_plot, P_plot, ymin, ymax, U_scaled, Xval, directory_res)
 
 # Create data frame for real beta values (if available)
-if(type=='simulated'){
+if(type!='real'){
   real_beta_df <- data.frame(time = data_grid, real_beta = real_beta)
 }
 
@@ -108,16 +139,22 @@ setwd(directory_res)
 
 # Plot data
 pdf("SIR-counts.pdf", width = 8, height = 6)
-plot_data(obs,Xval,model)
+plot_data_sim(obs,obs_with_noise,Xval)
 dev.off()
-plot_data(obs,Xval,model)
+plot_data_sim(obs,obs_with_noise,Xval)
 
-eta <- initial_params$eta
+lambda <- initial_params$lambda
 gamma <- initial_params$gamma
+eta <- initial_params$eta
 l <- initial_params$l
 
 # Plot contact rate
-pdf("contact-rate-with-CI.pdf", width = 8, height = 6)
-plot_contact_rate(type, U_plot, ymin, ymax, U_scaled, real_beta_df, gamma, eta, l)
+pdf("sim-contact-rate.pdf", width = 8, height = 6)
+plot_sim_contact_rate(real_beta_df, lambda, gamma, eta)
 dev.off()
-plot_contact_rate(type, U_plot, ymin, ymax, U_scaled, real_beta_df, gamma, eta, l)
+plot_sim_contact_rate(real_beta_df, lambda, gamma, eta)
+
+pdf("contact-rate-with-CI.pdf", width = 8, height = 6)
+plot_contact_rate_sim(U_plot, ymin, ymax, U_scaled, real_beta_df, lambda, gamma, eta, l)
+dev.off()
+plot_contact_rate_sim(U_plot, ymin, ymax, U_scaled, real_beta_df, lambda, gamma, eta, l)
