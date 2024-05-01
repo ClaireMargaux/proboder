@@ -18,6 +18,7 @@
 initialization <- function(obs, beta0, beta0prime, 
                            lambda = 0.6, gamma = 0.4, eta = 0.2, 
                            l = 1, scale = 1, noise_obs = 0.1,
+                           noise_X = 0.001, noise_U = 0.001,
                            noise_wiener_X = 1, noise_wiener_U = 1,
                            pop){
   
@@ -76,8 +77,8 @@ initialization <- function(obs, beta0, beta0prime,
   #R <- cov(obs[,-1])
   
   # Noise of priors
-  P_X <- matrix(0, nrow = 15, ncol = 15)
-  P_U <- matrix(0, nrow = 2, ncol = 2)
+  P_X <- matrix(noise_X, nrow = 15, ncol = 15)
+  P_U <- matrix(noise_U, nrow = 2, ncol = 2)
 
   # Noise of Wiener process
   noise_wiener_X <- diag(noise_wiener_X, nrow = ncol(L_X), ncol = ncol(L_X))

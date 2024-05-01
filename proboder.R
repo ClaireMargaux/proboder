@@ -5,13 +5,16 @@
 # Import functions
 source('~/Documents/GitHub/proboder/initialization.R')
 source('~/Documents/GitHub/proboder/functions_for_inference.R')
-source('~/Documents/GitHub/proboder/saving_loading_plotting.R')
+source('~/Documents/GitHub/proboder/saving_loading.R')
+source('~/Documents/GitHub/proboder/scoring.R')
+source('~/Documents/GitHub/proboder/plotting.R')
 
 # Necessary packages
 library(Matrix) # for sparseMatrix() and expm()
 library(numDeriv) # for jacobian()
 library(matrixcalc) # for svd.inverse()
 library(ggplot2) # for ggplot()
+library(gridExtra) # for multiple plots
 
 # Choose data to be imported
 type <- 'simulated_LSODA' # set 'real' for real data, 'simulated_LSODA' for simulated data using LSODA, and 'simulated_HETTMO' for simulated data using HETTMO
@@ -47,10 +50,11 @@ head(obs)
 # pop = 1000
 
 initial_params <- 
-  initialization(obs_with_noise, beta0 = 0.5, beta0prime = 0.3, 
+  initialization(obs_with_noise, beta0 = 0.1, beta0prime = 0.3, 
                  lambda = 0.6, gamma = 0.4, eta = 0.2, 
-                 l = 1.2, scale = 1, noise_obs = 0.1,
-                 noise_wiener_X = 100, noise_wiener_U = 10,
+                 l = 10, scale = 1, noise_obs = 1,
+                 noise_X = 0.001, noise_U = 1,
+                 noise_wiener_X = 1000, noise_wiener_U = 0.01,
                  pop = 1000)
 
 # If using data simulated with HETTMO:
@@ -106,9 +110,9 @@ directory_res = "~/Documents/GitHub/proboder/Results"
 # Save results to the specified directory
 save_results_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
 
-#####################################
-########### VISUALIZATION ###########
-#####################################
+###############################################
+########### SCORING & VISUALIZATION ###########
+###############################################
 
 # ---------------------
 # Extract relevant data
@@ -117,19 +121,24 @@ save_results_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
 # Load and process data from the specified directory
 processed_data <- load_and_process_data(directory_res,time_grid)
 U_plot <- processed_data$U_plot
-P_plot <- processed_data$P_plot
-ymin <- P_plot$ymin
-ymax <- P_plot$ymax
-U_scaled <- processed_data$U_scaled
-Xval <- processed_data$Xval
+X_plot <- processed_data$X_plot
 
 # Save processed data to the specified directory
-save_processed_data(U_plot, P_plot, ymin, ymax, U_scaled, Xval, directory_res)
+save_processed_data(U_plot, X_plot, directory_res)
 
 # Create data frame for real beta values (if available)
 if(type!='real'){
   real_beta_df <- data.frame(time = data_grid, real_beta = real_beta)
+  colnames(real_beta_df) <- c('t','beta')
 }
+
+# --------
+# Scoring
+# --------
+
+squared_prediction_error(U_plot,real_beta_df)
+negative_log_predictive_density(U_plot,real_beta_df)
+continuous_ranked_probability_score(U_plot,real_beta_df)
 
 # --------
 # Plotting
@@ -137,24 +146,39 @@ if(type!='real'){
 
 setwd(directory_res)
 
-# Plot data
-pdf("SIR-counts.pdf", width = 8, height = 6)
-plot_data_sim(obs,obs_with_noise,Xval)
+# Plot compartment counts
+pdf("SEIRD-counts.pdf", width = 8, height = 6)
+plot_data_sim(obs,obs_with_noise,X_plot)
 dev.off()
-plot_data_sim(obs,obs_with_noise,Xval)
+plot_data_sim(obs,obs_with_noise,X_plot)
 
+# Plot compartment counts separately
+plots <- plot_compartment(obs,obs_with_noise,X_plot)
+for (i in 1:5) {
+  pdf(paste0("SEIRD-counts-sep-with-CI-", i, ".pdf"), width = 8, height = 6)
+  plot <- plots[[i]]
+  print(plot)
+  dev.off()
+}
+for (i in 1:5) {
+  plot <- plots[[i]]
+  print(plot)
+}
+
+# Get some fixed values to plot together with contact rate
 lambda <- initial_params$lambda
 gamma <- initial_params$gamma
 eta <- initial_params$eta
 l <- initial_params$l
 
-# Plot contact rate
+# Plot simulated contact rate
 pdf("sim-contact-rate.pdf", width = 8, height = 6)
 plot_sim_contact_rate(real_beta_df, lambda, gamma, eta)
 dev.off()
 plot_sim_contact_rate(real_beta_df, lambda, gamma, eta)
 
-pdf("contact-rate-with-CI.pdf", width = 8, height = 6)
-plot_contact_rate_sim(U_plot, ymin, ymax, U_scaled, real_beta_df, lambda, gamma, eta, l)
+# Plot inferred contact rate
+pdf("inf-contact-rate-with-CI.pdf", width = 8, height = 6)
+plot_contact_rate_with_CI(U_plot, real_beta_df, lambda, gamma, eta, l)
 dev.off()
-plot_contact_rate_sim(U_plot, ymin, ymax, U_scaled, real_beta_df, lambda, gamma, eta, l)
+plot_contact_rate_with_CI(U_plot, real_beta_df, lambda, gamma, eta, l)

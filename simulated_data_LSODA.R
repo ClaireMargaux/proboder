@@ -3,10 +3,10 @@
 ############################################
 
 directory <- "~/Documents/GitHub/proboder/Data/LSODA" # directory for data
-noise <- 0.1 # noise to add on the data
+noise <- 1 # noise to add on the data
 
 # Time grid
-steps <- 0.5
+steps <- 0.2
 grid <- seq(0,10,by=steps)
 n <- length(grid)
 
@@ -17,13 +17,18 @@ eta <- 0.2
 pop <- 1000
 parms  <- c(lambda = lambda, gamma = gamma, eta = eta, pop = pop)
 
-# Beta
-beta <- function(t){0.3*sin(t)+0.5}
+# Beta function: sine
+# beta <- function(t){0.3*sin(t)+0.5}
+# beta_val <- beta(grid)
+# beta0 <- beta_val[1]
+
+# Beta function: log
+beta <- function(t){0.3*log(t+1)+0.1}
 beta_val <- beta(grid)
 beta0 <- beta_val[1]
 
 # Start values for steady state
-y <- xstart <- c(S = 987, E = 10, I = 1, R = 1, D = 1)
+y <- xstart <- c(S = 984, E = 10, I = 2, R = 2, D = 2)
 
 # ODE solver
 library(deSolve)
