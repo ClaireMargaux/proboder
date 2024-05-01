@@ -13,6 +13,8 @@ source('~/Documents/GitHub/proboder/plotting.R')
 library(Matrix) # for sparseMatrix() and expm()
 library(numDeriv) # for jacobian()
 library(matrixcalc) # for svd.inverse()
+library(knitr) # for nice tables
+library(kableExtra) # for storing nice tables
 library(ggplot2) # for ggplot()
 library(gridExtra) # for multiple plots
 
@@ -69,7 +71,7 @@ initial_params <-
 #                  pop = 1e+05)
 
 #####################################
-############# ALGORITHM #############
+############# INFERENCE #############
 #####################################
 
 # Data grid
@@ -110,9 +112,9 @@ directory_res = "~/Documents/GitHub/proboder/Results"
 # Save results to the specified directory
 save_results_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
 
-###############################################
-########### SCORING & VISUALIZATION ###########
-###############################################
+###############################
+########### SCORING ###########
+###############################
 
 # ---------------------
 # Extract relevant data
@@ -136,18 +138,36 @@ if(type!='real'){
 # Scoring
 # --------
 
-squared_prediction_error(U_plot,real_beta_df)
-negative_log_predictive_density(U_plot,real_beta_df)
-continuous_ranked_probability_score(U_plot,real_beta_df)
+# Compute the different scores
+SPE <- squared_prediction_error(U_plot,real_beta_df)
+NLPD <-negative_log_predictive_density(U_plot,real_beta_df)
+CRPS <- continuous_ranked_probability_score(U_plot,real_beta_df)
 
-# --------
-# Plotting
-# --------
+# Create a data frame with the results
+results <- data.frame(
+  Method = c("Squared Prediction Error", "Negative Log Predictive Density", "Continuous Ranked Probability Score"),
+  Value = c(SPE, NLPD, CRPS)
+)
 
-setwd(directory_res)
+# Create nice table using knitr and kableExtra
+table <- kable(results, align = "c", caption = "Scoring Methods Results")
+styled_table <- kableExtra::kable_styling(table, bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
+
+# ------
+# Saving
+# ------
+
+# Save the table as a HTML file
+file_path_html <- file.path(directory_res, "scoring_results.html")
+save_kable(styled_table, file = file_path_html, type = "html")
+
+#####################################
+########### VISUALIZATION ###########
+#####################################
 
 # Plot compartment counts
-pdf("SEIRD-counts.pdf", width = 8, height = 6)
+file_path <- file.path(directory_res, "SEIRD-counts.pdf")
+pdf(file_path, width = 8, height = 6)
 plot_data_sim(obs,obs_with_noise,X_plot)
 dev.off()
 plot_data_sim(obs,obs_with_noise,X_plot)
@@ -172,13 +192,15 @@ eta <- initial_params$eta
 l <- initial_params$l
 
 # Plot simulated contact rate
-pdf("sim-contact-rate.pdf", width = 8, height = 6)
+file_path <- file.path(directory_res, "sim-contact-rate.pdf")
+pdf(file_path, width = 8, height = 6)
 plot_sim_contact_rate(real_beta_df, lambda, gamma, eta)
 dev.off()
 plot_sim_contact_rate(real_beta_df, lambda, gamma, eta)
 
 # Plot inferred contact rate
-pdf("inf-contact-rate-with-CI.pdf", width = 8, height = 6)
+file_path <- file.path(directory_res, "inf-contact-rate-with-CI.pdf")
+pdf(file_path, width = 8, height = 6)
 plot_contact_rate_with_CI(U_plot, real_beta_df, lambda, gamma, eta, l)
 dev.off()
 plot_contact_rate_with_CI(U_plot, real_beta_df, lambda, gamma, eta, l)
