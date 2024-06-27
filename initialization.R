@@ -13,14 +13,16 @@
 #' @param noise_wiener_X Noise of the Wiener process modelling X.
 #' @param noise_wiener_U Noise of the Wiener process modelling U.
 #' @param pop Population.
+#' @param num_points_between Number of in-between points to add to the ODE grid.
 #' @return A list containing initialized parameters and matrices.
 #' @export
 initialization <- function(obs, beta0, beta0prime, 
-                           lambda = 0.6, gamma = 0.4, eta = 0.2, 
-                           l = 1, scale = 1, noise_obs = 0.1,
-                           noise_X = 0.001, noise_U = 0.001,
-                           noise_wiener_X = 1, noise_wiener_U = 1,
-                           pop){
+                           lambda, gamma, eta, 
+                           l, scale = 1, noise_obs,
+                           noise_X, noise_U,
+                           noise_wiener_X, noise_wiener_U,
+                           pop,
+                           num_points_between = 0){
   
   # Get vector indicating which compartments have been observed
   get_observation_vector <- function(obs_data) {
@@ -46,11 +48,13 @@ initialization <- function(obs, beta0, beta0prime,
   
   # Initialize compartment counts and their two first derivatives
   X0 <- numeric(5)
-  X0[1] <- ifelse(1 %in% ind, obs[1, which(colnames(obs) == "S")], pop)
-  X0[2] <- ifelse(2 %in% ind, obs[1, which(colnames(obs) == "E")], 0)
-  X0[3] <- ifelse(3 %in% ind, obs[1, which(colnames(obs) == "I")], 0)
-  X0[4] <- ifelse(4 %in% ind, obs[1, which(colnames(obs) == "R")], 0)
-  X0[5] <- ifelse(5 %in% ind, obs[1, which(colnames(obs) == "D")], 0)
+  num_initial_values <- 5
+  X0[1] <- ifelse("S" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "S")]), pop)
+  X0[2] <- ifelse("E" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "E")]), 0)
+  X0[3] <- ifelse("I" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "I")]), 0)
+  X0[4] <- ifelse("R" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "R")]), 0)
+  X0[5] <- ifelse("D" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "D")]), 0)
+  X0 <- unlist(X0)
   X1 <- f(X0, beta0, pop, lambda, gamma, eta) # Initial values for 1st derivatives
   X2 <- diag(jacobian_f(X0, beta0, pop, lambda, gamma, eta)) # Initial values for 2nd derivatives
   X <- as.vector(c(X0,X1,X2))
@@ -73,8 +77,11 @@ initialization <- function(obs, beta0, beta0prime,
   H <- as.matrix(sparseMatrix(i = 1:length(ind), j = ind, x = 1, dims = c(length(ind),17)))
   
   # Observation noise
-  R <- diag(noise_obs, nrow = length(ind), ncol = length(ind))
-  #R <- cov(obs[,-1])
+  if(length(noise_obs) == 1){
+    R <- diag(noise_obs, nrow = length(ind), ncol = length(ind))
+  }else{
+    R <- noise_obs
+  }
   
   # Noise of priors
   P_X <- matrix(noise_X, nrow = 15, ncol = 15)
@@ -87,7 +94,7 @@ initialization <- function(obs, beta0, beta0prime,
   out <- list(X = X, U = U, P_X = P_X, P_U = P_U, 
               F_X = F_X, F_U = F_U, L_X = L_X, L_U = L_U, 
               noise_wiener_X = noise_wiener_X, noise_wiener_U = noise_wiener_U,
-              R = R, H = H, pop = pop, 
+              R = R, H = H, pop = pop, num_points_between = num_points_between, 
               lambda = lambda, gamma = gamma, eta = eta, l = l)
 
   return(out)

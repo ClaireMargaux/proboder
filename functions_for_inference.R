@@ -9,7 +9,7 @@
 #' sigmoid(1) # Returns 0.7310586
 #' @export
 sigmoid <- function(z) {
-  return(1 / (1 + exp(-z)))
+  return(5 / (1 + exp(-z)))
 }
 
 #' Logit function
@@ -23,7 +23,7 @@ sigmoid <- function(z) {
 #' logit(0.7310586) # Returns 1
 #' @export
 logit <- function(p) {
-  return(log(p / (1 - p)))
+  return(-log(5/p - 1))
 }
 
 #' ODE function
@@ -246,7 +246,8 @@ update_of_observations <- function(m, P, y, H, R) {
   
   v <- y - H %*% m # residual
   S <- H %*% P %*% t(H) + R # innovation covariance
-  S_inv <- svd.inverse(S)
+  #S_inv <- svd.inverse(S)
+  S_inv <- solve(S)
   K <- P %*% t(H) %*% S_inv # Kalman gain
   m_out <- m + K %*% v # updated mean
   P_out <- P - K %*% S %*% t(K) # updated covariance
@@ -278,7 +279,8 @@ update_of_states <- function(m, P, h, J) {
   
   v <- - h # residual
   S <- J %*% P %*% t(J) # innovation covariance
-  S_inv <- svd.inverse(S)
+  # S_inv <- svd.inverse(S)
+  S_inv <- solve(S)
   K <- P %*% t(J) %*% S_inv # Kalman gain
   m_out <- m + K %*% v # updated mean
   P_out <- P - K %*% S %*% t(K) # updated covariance
@@ -439,14 +441,12 @@ inference <- function(time_grid, data_grid, ode_grid, steps, obs, initial_params
     if (any(data_grid == time_grid[i])) {
       m <- c(X_pred, U_pred)
       P <- matrix_P(P_X_pred, P_U_pred)
-      y <- unlist(obs_without_time[i, ind])
+      y <- unlist(obs_without_time[i,])
       updated_obs <- update_of_observations(m = m, P = P, y = y, H = H, R = R)
       X_pred <- as.vector(updated_obs[[1]][1:15])
       P_X_pred <- as.matrix(updated_obs[[2]][1:15, 1:15])
       U_pred <- as.vector(updated_obs[[1]][16:17])
       P_U_pred <- as.matrix(updated_obs[[2]][16:17, 16:17])
-      
-      print(paste('update obs ',i))
     }
     
     # Update of states if required at the current time point
@@ -462,8 +462,6 @@ inference <- function(time_grid, data_grid, ode_grid, steps, obs, initial_params
       P_X_pred <- as.matrix(updated_states[[2]][1:15, 1:15])
       U_pred <- as.vector(updated_states[[1]][16:17])
       P_U_pred <- as.matrix(updated_states[[2]][16:17, 16:17])
-    
-      print(paste('update ode ',i))
     }
   
     # Store current values and covariances

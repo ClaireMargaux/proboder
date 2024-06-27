@@ -16,22 +16,32 @@
 #' @export
 load_data <- function(type, region, daily_or_weekly, directory) {
   # Check if type is valid
-  if (!(type %in% c('simulated_LSODA', 'simulated_HETTMO', 'real'))) {
-    stop("Error: Invalid type. Type must be 'simulated' or 'real'.")
+  if (!(type %in% c('simulated_LSODA_sin', 'simulated_LSODA_log', 'simulated_HETTMO', 'real'))) {
+    stop("Error: Invalid type.")
   }
   
   # Check if region is valid
-  if (!(region %in% c('BE', 'GE'))) {
+  if (!(region %in% c('BE', 'GE', ''))) {
     stop("Error: Invalid region. Region must be 'BE' or 'GE'.")
   }
   
   # Check if daily_or_weekly is valid
-  if (!(daily_or_weekly %in% c('daily', 'weekly'))) {
+  if (!(daily_or_weekly %in% c('daily', 'weekly', ''))) {
     stop("Error: Invalid value for daily_or_weekly. Must be 'daily' or 'weekly'.")
   }
   
   # Load data based on type
-  if (type == 'simulated_LSODA') {
+  if (type == 'simulated_LSODA_sin') {
+    load(file.path(directory, "simulated_data_LSODA.Rdata"))
+    obs <- df
+    load(file.path(directory, "simulated_noisy_data_LSODA.Rdata"))
+    obs_with_noise <- df_with_noise
+    load(file.path(directory, "simulated_params_LSODA.Rdata"))
+    params <- df_params
+    real_beta <- readRDS(file.path(directory, "simulated_beta_LSODA.Rds"))
+    return <- list(obs = obs, obs_with_noise = obs_with_noise, params = params, real_beta = real_beta)
+  }
+  if (type == 'simulated_LSODA_log') {
     load(file.path(directory, "simulated_data_LSODA.Rdata"))
     obs <- df
     load(file.path(directory, "simulated_noisy_data_LSODA.Rdata"))
@@ -56,7 +66,7 @@ load_data <- function(type, region, daily_or_weekly, directory) {
     obs <- observations
     population <- readRDS(file.path(directory, population_filename))
     real_beta <- NULL 
-    return <- list(obs = obs, params = params, real_beta = real_beta)
+    return <- list(obs = obs, population = population)
   }
 
   # Return loaded data

@@ -2,33 +2,34 @@
 ####### SIMULATED DATA USING LSODA #########
 ############################################
 
-directory <- "~/Documents/GitHub/proboder/Data/LSODA" # directory for data
-noise <- 1 # noise to add on the data
+noise <- 10 # noise to add on the data
 
 # Time grid
-steps <- 0.2
-grid <- seq(0,10,by=steps)
+steps <- 1
+grid <- seq(0,30,by=steps)
 n <- length(grid)
 
 # Parameters
-lambda <- 0.6
-gamma <- 0.4
-eta <- 0.2
-pop <- 1000
+lambda <- 0.2 # latency
+gamma <- 0.1 # recovery
+eta <- 0.005 # fatality
+pop <- 500000
 parms  <- c(lambda = lambda, gamma = gamma, eta = eta, pop = pop)
 
 # Beta function: sine
-# beta <- function(t){0.3*sin(t)+0.5}
+# beta <- function(t){0.05*sin(t/10)+0.2}
 # beta_val <- beta(grid)
 # beta0 <- beta_val[1]
+# directory <- "~/Documents/GitHub/proboder/Data/LSODA/sin" # directory for data
 
 # Beta function: log
-beta <- function(t){0.3*log(t+1)+0.1}
-beta_val <- beta(grid)
-beta0 <- beta_val[1]
+# beta <- function(t){0.05*log(t+1)+0.2}
+# beta_val <- beta(grid)
+# beta0 <- beta_val[1]
+# directory <- "~/Documents/GitHub/proboder/Data/LSODA/log" # directory for data
 
 # Start values for steady state
-y <- xstart <- c(S = 984, E = 10, I = 2, R = 2, D = 2)
+y <- xstart <- c(S = 499970, E = 10, I = 10, R = 10, D = 0)
 
 # ODE solver
 library(deSolve)
@@ -79,7 +80,6 @@ betaplot <- ggplot(df_beta, aes(x = t, y = beta_val)) +
   theme_minimal() +
   ylab("beta") +
   xlab("time") +
-  ylim(c(0,1)) +
   ggtitle("Simulated beta") 
 
 betaplot

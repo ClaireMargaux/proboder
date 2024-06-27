@@ -5,12 +5,10 @@
 #'
 #' @param U_plot Data frame containing the inferred contact rate values.
 #' @param real_beta_df Data frame containing the real contact rate values.
-#' @return The squared prediction error.
+#' @return The mean squared prediction error.
 #' @export
 squared_prediction_error <- function(U_plot, real_beta_df){
-  max <- nrow(U_plot)
-  SPE <- (U_plot$U_scaled[max]-real_beta_df$beta[max])^2
-  
+  SPE <- mean((U_plot$U_scaled - real_beta_df$beta)^2)
   return(SPE)
 }
 
@@ -21,12 +19,10 @@ squared_prediction_error <- function(U_plot, real_beta_df){
 #'
 #' @param U_plot Data frame containing the inferred contact rate values.
 #' @param real_beta_df Data frame containing the real contact rate values.
-#' @return The negative log predictive density.
+#' @return The mean negative log predictive density.
 #' @export
 negative_log_predictive_density <- function(U_plot, real_beta_df){
-  max <- nrow(U_plot)
-  NLPD <- -log(dnorm(x = real_beta_df$beta[max], mean = U_plot$U_scaled[max], sd = sqrt(U_plot$P_U_scaled[max])))
-    
+  NLPD <- mean(-log(dnorm(x = real_beta_df$beta, mean = U_plot$U_scaled, sd = sqrt(U_plot$P_U_scaled))))
   return(NLPD)
 }
 
@@ -37,21 +33,19 @@ negative_log_predictive_density <- function(U_plot, real_beta_df){
 #'
 #' @param U_plot Data frame containing the inferred contact rate values.
 #' @param real_beta_df Data frame containing the real contact rate values.
-#' @return The continuous ranked probability score.
+#' @return The mean continuous ranked probability score.
 #' @export
 continuous_ranked_probability_score <- function(U_plot, real_beta_df){
-  max <- nrow(U_plot)
+  mu <- U_plot$U_scaled
+  sigma <- sqrt(U_plot$P_U_scaled)
+  y <- real_beta_df$beta
+  omega <- (y - mu) / sigma
   
-  mu <- U_plot$U_scaled[max]
-  sigma <- sqrt(U_plot$P_U_scaled[max])
-  y <- real_beta_df$beta[max]
-  omega <- (y - mu)/sigma
-  
-  CRPS <- sigma * (
+  CRPS <- mean(sigma * (
     omega * (2 * pnorm(omega) - 1) 
     + 2 * dnorm(omega) 
     - 1/sqrt(pi)
-    )
+  ))
   
   return(CRPS)
 }

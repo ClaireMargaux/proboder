@@ -4,6 +4,8 @@
 
 directory <- "~/Documents/GitHub/proboder/Data/HETTMO" # directory for data
 
+#library(devtools)
+#install_github("JudithBouman2412/HETTMO")
 library(HETTMO)
 
 params_unstratified = set_parameters()
@@ -35,6 +37,6 @@ df_params <- data.frame(pop = population_simulate, lambda = 0.3703704, gamma = 0
 ################################
 
 save(observations_simulate, file = file.path(directory, "simulated_data_HETTMO.Rdata"))
-save(population_simulate, file = file.path(directory, "simulated_params_HETTMO.Rdata"))
+save(df_params, file = file.path(directory, "simulated_params_HETTMO.Rdata"))
 saveRDS(real_beta, file = file.path(directory, "simulated_beta_HETTMO.Rds"))
 save(HETTMO_data_simulated, file = file.path(directory, "HETTMO_save.Rdata"))
