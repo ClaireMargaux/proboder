@@ -2,7 +2,8 @@
 ####### SIMULATED DATA USING LSODA #########
 ############################################
 
-noise <- 10 # noise to add on the data
+noise <- 5 # noise to add on the data
+set.seed(5) # for reproducibility
 
 # Time grid
 steps <- 1
@@ -10,26 +11,26 @@ grid <- seq(0,30,by=steps)
 n <- length(grid)
 
 # Parameters
-lambda <- 0.2 # latency
-gamma <- 0.1 # recovery
-eta <- 0.005 # fatality
+lambda <- 1/(2.6) # latency
+gamma <- 1/(2.6) # recovery
+eta <- 0.024*(1/15) # fatality
 pop <- 500000
 parms  <- c(lambda = lambda, gamma = gamma, eta = eta, pop = pop)
 
 # Beta function: sine
-# beta <- function(t){0.05*sin(t/10)+0.2}
+# beta <- function(t){0.05*sin(t/10)+0.8}
 # beta_val <- beta(grid)
 # beta0 <- beta_val[1]
 # directory <- "~/Documents/GitHub/proboder/Data/LSODA/sin" # directory for data
 
 # Beta function: log
-# beta <- function(t){0.05*log(t+1)+0.2}
-# beta_val <- beta(grid)
-# beta0 <- beta_val[1]
-# directory <- "~/Documents/GitHub/proboder/Data/LSODA/log" # directory for data
+beta <- function(t){0.03*log(t+1)+0.8}
+beta_val <- beta(grid)
+beta0 <- beta_val[1]
+directory <- "~/Documents/GitHub/proboder/Data/LSODA/log" # directory for data
 
 # Start values for steady state
-y <- xstart <- c(S = 499970, E = 10, I = 10, R = 10, D = 0)
+y <- xstart <- c(S = 499970, E = 5, I = 5, R = 5, D = 5)
 
 # ODE solver
 library(deSolve)
@@ -71,7 +72,7 @@ countsplot <- ggplot(df, aes(x = t, y = S)) +
   scale_y_continuous(trans='log10') + 
   ylab("log(count)") +
   xlab("time") + 
-  ggtitle("LSODA") 
+  ggtitle("Observations without noise") 
 
 countsplot
 

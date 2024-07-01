@@ -4,7 +4,7 @@
 
 directory <- "~/home/claire/Documents/data_covid_dashboard/sources-csv/data" # directory of data
 region <- 'GE' # 'BE' or 'GE' available (if 'real' data selected)
-daily_or_weekly <- 'weekly' # choose either 'daily' or 'weekly' (if 'real' data selected)
+daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly' (if 'real' data selected)
 
 # Import dataset.
 setwd("~/Documents/GitHub/proboder/data_covid_dashboard/sources-csv/data")

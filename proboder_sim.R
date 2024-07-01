@@ -7,7 +7,7 @@ source('~/Documents/GitHub/proboder/initialization.R')
 source('~/Documents/GitHub/proboder/functions_for_inference.R')
 source('~/Documents/GitHub/proboder/saving_loading.R')
 source('~/Documents/GitHub/proboder/scoring.R')
-source('~/Documents/GitHub/proboder/plotting_sim.R')
+source('~/Documents/GitHub/proboder/plotting.R')
 
 # Necessary packages
 library(Matrix) # for sparseMatrix() and expm()
@@ -19,6 +19,7 @@ library(ggplot2) # for ggplot()
 library(gridExtra) # for multiple plots
 library(tictoc) # for benchmarking
 library(progress) # to track progress of grid search
+library(dplyr) # for treating data
 
 # Start counting computation time
 tic("Duration of the whole workflow")
@@ -28,7 +29,7 @@ tic("Duration of the whole workflow")
 #################################
 
 # Choose data to be imported
-type <- 'simulated_LSODA_sin' # set 'simulated_LSODA' for simulated data using LSODA, and 'simulated_HETTMO' for simulated data using HETTMO
+type <- 'simulated_LSODA_log' # set 'simulated_LSODA' for simulated data using LSODA, and 'simulated_HETTMO' for simulated data using HETTMO
 region <- ''
 daily_or_weekly <- ''
 
@@ -62,31 +63,38 @@ if(exists("best_params")){
                    l = best_params$l, scale = 1, noise_obs = params$obs_noise,
                    noise_X = sqrt(params$obs_noise), noise_U = 0.01,
                    noise_wiener_X = best_params$noise_wiener_X, noise_wiener_U = best_params$noise_wiener_U,
-                   #noise_wiener_X = (params$obs_noise), noise_wiener_U = 0.01,
                    pop = params$pop,
-                   num_points_between = best_params$num_points_between)
+                   num_points_between = 0)
   
 }else if(type == 'simulated_LSODA_sin'){
   
   initial_params <-
-    initialization(obs_with_noise, beta0 = real_beta[1], beta0prime = 0.1,
+    initialization(obs_with_noise, beta0 = real_beta[1], beta0prime = 0.3,
                    lambda = params$lambda, gamma = params$gamma, eta = params$eta,
-                   l = 13.5, scale = 1, noise_obs = params$obs_noise,
+                   l = 9.7, scale = 1, noise_obs = params$obs_noise,
                    noise_X = sqrt(params$obs_noise), noise_U = 0.01,
-                   noise_wiener_X = 0.01, noise_wiener_U = 0.001,
+                   noise_wiener_X = 50, noise_wiener_U = 0.01,
                    pop = params$pop,
                    num_points_between = 0)
+  
+  # best_params
+  #   l noise_wiener_X noise_wiener_U beta0prime         SPE     NLPD      CRPS
+  # 9.7             50           0.01        0.3 0.004045279 1.382473 0.3722231
   
 }else if(type == 'simulated_LSODA_log'){
   
   initial_params <-
-    initialization(obs_with_noise, beta0 = real_beta[1], beta0prime = 0.1,
+    initialization(obs_with_noise, beta0 = real_beta[1], beta0prime = 0.5,
                    lambda = params$lambda, gamma = params$gamma, eta = params$eta,
-                   l = 10, scale = 1, noise_obs = params$obs_noise,
-                   noise_X = 0.001, noise_U = 0.01,
-                   noise_wiener_X = 100, noise_wiener_U = 0.05,
+                   l = 9.55, scale = 1, noise_obs = params$obs_noise,
+                   noise_X = sqrt(params$obs_noise), noise_U = 0.01,
+                   noise_wiener_X = 25, noise_wiener_U = 0.01,
                    pop = params$pop, 
                    num_points_between = 0)
+  
+  # best_params
+  #    l noise_wiener_X noise_wiener_U beta0prime         SPE     NLPD      CRPS
+  # 9.55             25           0.01        0.5 0.004370289 1.381363 0.3718669
   
 }
 
@@ -234,8 +242,8 @@ for (i in 1:5) {
 }
 
 # Get some fixed values to plot together with contact rate
-lambda <- initial_params$lambda
-gamma <- initial_params$gamma
+lambda <- round(initial_params$lambda, 4)
+gamma <- round(initial_params$gamma, 4)
 eta <- initial_params$eta
 l <- initial_params$l
 

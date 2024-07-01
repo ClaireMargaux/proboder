@@ -7,7 +7,7 @@ source('~/Documents/GitHub/proboder/initialization.R')
 source('~/Documents/GitHub/proboder/functions_for_inference.R')
 source('~/Documents/GitHub/proboder/saving_loading.R')
 source('~/Documents/GitHub/proboder/scoring.R')
-source('~/Documents/GitHub/proboder/plotting_sim.R')
+source('~/Documents/GitHub/proboder/plotting.R')
 
 # Necessary packages
 library(Matrix) # for sparseMatrix() and expm()
@@ -25,7 +25,7 @@ library(progress) # to track progress of grid search
 # ----
 
 # Choose data to be imported
-type <- 'simulated_LSODA_sin' # set 'simulated_LSODA' for simulated data using LSODA, and 'simulated_HETTMO' for simulated data using HETTMO
+type <- 'simulated_LSODA_log' # set 'simulated_LSODA' for simulated data using LSODA, and 'simulated_HETTMO' for simulated data using HETTMO
 region <- ''
 daily_or_weekly <- ''
 
@@ -56,15 +56,14 @@ colnames(real_beta_df) <- c('t','beta')
 # -----------
 
 param_grid <- expand.grid(
-  l = seq(0.5, 15, by = 0.5),
-  noise_wiener_X = c(1, 10, 100),
-  noise_wiener_U = c(0.001, 0.01, 0.1),
-  beta0prime = c(-1, -0.1, 0, 0.1, 1),
-  num_points_between = c(0,1)
+  l = seq(1, 10, by = 0.05),
+  noise_wiener_X = seq(20, 1000, by = 25),
+  noise_wiener_U = seq(0.005, 1, by = 0.005),
+  beta0prime = c(0, 0.1, 0.3, 0.5, 1)
 )
 
 set.seed(123) # for reproducibility
-sampled_grid <- param_grid %>% sample_n(100)
+sampled_grid <- param_grid %>% sample_n(5000)
 
 results_grid_search <- data.frame()
 
@@ -86,8 +85,7 @@ for (i in 1:nrow(sampled_grid)) {
     l = param_i$l, scale = 1, noise_obs = params$obs_noise,
     noise_X = sqrt(params$obs_noise), noise_U = 0.01,
     noise_wiener_X = param_i$noise_wiener_X, noise_wiener_U = param_i$noise_wiener_U,
-    #noise_wiener_X = (params$obs_noise), noise_wiener_U = 0.01,
-    pop = params$pop, num_points_between = param_i$num_points_between
+    pop = params$pop, num_points_between = 0
   )
   
   # ---------

@@ -6,7 +6,7 @@
 source('~/Documents/GitHub/proboder/initialization.R')
 source('~/Documents/GitHub/proboder/functions_for_inference.R')
 source('~/Documents/GitHub/proboder/saving_loading.R')
-source('~/Documents/GitHub/proboder/plotting_real.R')
+source('~/Documents/GitHub/proboder/plotting.R')
 
 # Necessary packages
 library(Matrix) # for sparseMatrix() and expm()
@@ -17,6 +17,7 @@ library(kableExtra) # for storing nice tables
 library(ggplot2) # for ggplot()
 library(gridExtra) # for multiple plots
 library(tictoc) # for benchmarking
+library(dplyr) # for treating data
 
 # Start counting computation time
 tic("Duration of the whole workflow")
@@ -29,13 +30,8 @@ tic("Duration of the whole workflow")
 type <- 'real' # set 'real' for real data, 'simulated_LSODA' for simulated data using LSODA, and 'simulated_HETTMO' for simulated data using HETTMO
 region <- 'GE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly' (if 'real' data selected)
-if(type == 'simulated_LSODA'){
-  directory_data <- "~/Documents/GitHub/proboder/Data/LSODA" # directory of data
-}else if(type == 'simulated_HETTMO'){
-  directory_data <- "~/Documents/GitHub/proboder/Data/HETTMO" # directory of data
-}else if(type == 'real'){
-  directory_data <- "~/Documents/GitHub/proboder/Data/real" # directory of data
-}
+
+directory_data <- "~/Documents/GitHub/proboder/Data/real" # directory of data
 
 # Import data
 data <- load_data(type,region,daily_or_weekly,directory_data)
@@ -54,12 +50,13 @@ obs <- obs[1:30,]
 
 # If using daily data:
 initial_params <-
-  initialization(obs, beta0 = 0.2, beta0prime = 0.1,
-                 lambda = 0.2, gamma = 0.1, eta = 0.005,
-                 l = 10, scale = 1, noise_obs = 10,
-                 noise_X = sqrt(10), noise_U = 0.01,
-                 noise_wiener_X = 10, noise_wiener_U = 0.01,
-                 pop = pop)
+  initialization(obs, beta0 = 0.8, beta0prime = 0.3,
+                 lambda = 1/2.6, gamma = 1/2.6, eta = 0.024/15,
+                 l = 7.7, scale = 1, noise_obs = 10,
+                 noise_X = sqrt(10), noise_U = 0.1,
+                 noise_wiener_X = 95, noise_wiener_U = 0.015,
+                 pop = pop,
+                 num_points_between = 0)
 
 #####################################
 ############# INFERENCE #############
@@ -84,11 +81,7 @@ ode_grid <- data_grid # no more points than observations
 time_grid <- sort(unique(c(data_grid, ode_grid)))
 
 # Time steps
-if(type != 'real'){
-  steps <- ode_grid[2]-ode_grid[1]
-}else{
-   steps <- 1
-}
+steps <- 1
 
 # Run inference
 inference_results <- inference(time_grid, data_grid, ode_grid, steps, obs, initial_params)

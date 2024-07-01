@@ -7,8 +7,8 @@ region <- 'GE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly' (if 'real' data selected)
 
 # Assumptions
-incubation_period <- 5  # Days from S to E
-infectious_period <- 10  # Days from E to I
+incubation_period <- 5  # Days from E to I
+infectious_period <- 10  # Days from I to R
 
 # Import dataset.
 setwd("~/Documents/GitHub/proboder/data_covid_dashboard/sources-csv/data")
@@ -83,16 +83,22 @@ for (i in num_dates:1) {
     new_infections <- 0
   }
   
-  # Calculate new exposures (E)
-  if (i + incubation_period <= num_dates) {
-    new_exposures <- I[i + incubation_period] - I[i + incubation_period - 1] + new_infections
-  } else {
-    new_exposures <- new_infections
-  }
-  
-  # Update compartments
+  # Update compartment I
   if (i == num_dates) {
     I[i] <- new_infections
+  } else {
+    I[i] <- I[i + 1] + new_infections
+  }
+  
+  # Calculate new exposures (E)
+  if (i + incubation_period <= num_dates) {
+    new_exposures <- I[i + incubation_period] - I[i + incubation_period - 1] 
+  } else {
+    new_exposures <- 0
+  }
+  
+  # Update compartments E and S
+  if (i == num_dates) {
     E[i] <- new_exposures
     S[i] <- population
   } else {
