@@ -321,21 +321,21 @@ matrix_P <- function(P_X, P_U) {
 #' This function performs inference over a specified time grid using a state-space model.
 #' It iteratively updates the state estimates and covariances based on observations and predictions.
 #'
-#' @param time_grid Numeric vector, time grid for the inference.
-#' @param data_grid Numeric vector, time grid for the updates on the observations.
-#' @param ode_grid Numeric vector, time grid for the updates on the ODE.
-#' @param steps Numeric, time steps of the time grid.
+#' @param grids List of time grids for inference.
 #' @param obs Data frame, contains the dates and the compartment counts.
 #' @param initial_params List of initial parameters obtained from the initialization function.
 #'
 #' @return A list with the inferred values of X, U, P_X, and P_U.
 #' @export
-inference <- function(time_grid, data_grid, ode_grid, steps, obs, initial_params){
+inference <- function(grids, obs, initial_params){
   # Arguments:
+  #   grids: List of time grids for inference, has the following entries:
+  #
   #   time_grid: Numeric vector, time grid for the inference.
   #   data_grid: Numeric vector, time grid for the updates on the observations.
   #   ode_grid: Numeric vector, time grid for the updates on the ODE.
   #   steps: Numeric, time steps.
+  #
   #   obs: Data frame, contains the dates and the compartment counts.
   #   initial_params: List of initial parameters obtained from the initialization function, has the following entries:
   #
@@ -357,6 +357,11 @@ inference <- function(time_grid, data_grid, ode_grid, steps, obs, initial_params
   #
   # Returns:
   #   A list with the inferred values of X, U, P_X and P_U.
+  
+  time_grid <- grids$time_grid
+  data_grid <- grids$data_grid
+  ode_grid <- grids$ode_grid
+  steps <- grids$steps
   
   X <- initial_params$X
   U <- initial_params$U

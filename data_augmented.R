@@ -7,8 +7,9 @@ region <- 'GE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly' (if 'real' data selected)
 
 # Assumptions
-incubation_period <- 5  # Days from E to I
-infectious_period <- 10  # Days from I to R
+incubation_period <- 2  # Days from E to I
+infectious_period <- 3  # Days from I to R
+time_to_death <- 15 # Days from I to D
 
 # Import dataset.
 setwd("~/Documents/GitHub/proboder/data_covid_dashboard/sources-csv/data")
@@ -66,54 +67,74 @@ if (daily_or_weekly == 'daily'){
 observations <- inner_join(cases, deaths, by = "date") 
 observations$deaths[is.na(observations$deaths)] <- 0
 colnames(observations) <- c('t','R','D')
+rm(csv_data_cases, csv_data_death, data_cases, data_death, cases, deaths)
 
 # Initialize compartments
 num_dates <- length(dates)
 S <- numeric(num_dates)
+ER <- numeric(num_dates)
+ED <- numeric(num_dates)
 E <- numeric(num_dates)
+IR <- numeric(num_dates)
+ID <- numeric(num_dates)
 I <- numeric(num_dates)
-total_removed <- observations$R + observations$D
 
-# Backward computation
-for (i in num_dates:1) {
-  # Calculate new infections (I)
-  if (i + infectious_period <= num_dates) {
-    new_infections <- total_removed[i + infectious_period] - total_removed[i + infectious_period - 1]
-  } else {
-    new_infections <- 0
-  }
+# Backward computation of IR, ER
+for (i in num_dates:2) {
+  # Initialize new infections
+  new_infections <- 0
+  new_infections <- observations$R[i] - observations$R[i - 1]
   
-  # Update compartment I
-  if (i == num_dates) {
-    I[i] <- new_infections
-  } else {
-    I[i] <- I[i + 1] + new_infections
-  }
+  # Update compartment IR
+  if (i - infectious_period >= 1) {
+    for (j in 0:(infectious_period-1)) {
+      IR[i - infectious_period + j] <- IR[i - infectious_period + j] + new_infections
+    }
+  } 
   
-  # Calculate new exposures (E)
-  if (i + incubation_period <= num_dates) {
-    new_exposures <- I[i + incubation_period] - I[i + incubation_period - 1] 
-  } else {
-    new_exposures <- 0
-  }
-  
-  # Update compartments E and S
-  if (i == num_dates) {
-    E[i] <- new_exposures
-    S[i] <- population
-  } else {
-    I[i] <- I[i + 1] + new_infections
-    E[i] <- E[i + 1] + new_exposures
-    S[i] <- S[i + 1] + new_exposures
-  }
-  
-  # Ensure non-negative counts
-  S[i] <- max(0, S[i])
-  E[i] <- max(0, E[i])
-  I[i] <- max(0, I[i])
+  # Update compartment ER
+  if (i - infectious_period - incubation_period >= 1) {
+    for (j in 0:(incubation_period-1)) {
+      ER[i - infectious_period - incubation_period + j] <- ER[i - infectious_period - incubation_period + j] + new_infections
+    }
+  } 
 }
 
-# Create dataframe for S, E, I compartments
+# Backward computation of ID, ED
+for (i in num_dates:2) {
+  # Initialize new infections
+  new_infections <- 0
+  new_infections <- observations$D[i] - observations$D[i - 1]
+  
+  # Update compartment IR
+  if (i - time_to_death >= 1) {
+    for (j in 0:(time_to_death-1)) {
+      ID[i - time_to_death + j] <- ID[i - time_to_death + j] + new_infections
+    }
+  } 
+  
+  # Update compartment ER
+  if (i - time_to_death - incubation_period >= 1) {
+    for (j in 0:(incubation_period-1)) {
+      ED[i - time_to_death - incubation_period + j] <- ED[i - time_to_death - incubation_period + j] + new_infections
+    }
+  } 
+}
+
+# Computation of I (merging ID and IR)
+I <- IR + ID
+E <- ER + ED
+
+# Remove temp variables
+rm(IR,ID,ER,ED,i,j)
+
+# Forward computation of S
+S[1] = population
+for (i in 2:num_dates) {
+  S[i] <- S[i-1] - max(0,(E[i] - E[i-1]))
+}
+
+# Create dataframe for S, E, I, R, D compartments
 compartments <- data.frame(
   date = observations$t,
   S = S,
@@ -122,9 +143,22 @@ compartments <- data.frame(
   R = observations$R,
   D = observations$D
 )
+colnames(compartments) <- c('t','S','E','I','R','D')
 
-countsplot <- ggplot(observations, aes(x = t, y = R)) +
-  geom_line(aes(color = 'R')) +
+compartments_to_plot <- compartments %>%
+  mutate(
+    S = ifelse(S <= 0, 0.001, S),
+    E = ifelse(E <= 0, 0.001, E),
+    I = ifelse(I <= 0, 0.001, I),
+    R = ifelse(R <= 0, 0.001, R),
+    D = ifelse(D <= 0, 0.001, D)
+  )
+
+countsplot <- ggplot(compartments_to_plot, aes(x = t, y = S)) +
+  geom_line(aes(color = 'S')) +
+  geom_line(aes(x = t, y = E, color = 'E')) +
+  geom_line(aes(x = t, y = I, color = 'I')) +
+  geom_line(aes(x = t, y = R, color = 'R')) +
   geom_line(aes(x = t, y = D, color = 'D')) +
   theme_minimal() +
   scale_y_continuous(trans='log10') + 
@@ -142,7 +176,7 @@ n <- nrow(observations) # size of data_grid
 
 directory_save <- "~/Documents/GitHub/proboder/Data/real" # directory for saving
 
-region_filename <- paste0("real_data_with_asump", region, "_", daily_or_weekly, ".Rdata")
-population_filename <- paste0("real_pop_with_asump", region, "_", daily_or_weekly, ".Rds")
-save(observations, file = file.path(directory_save, region_filename))
+region_filename <- paste0("real_data_augmented_", region, "_", daily_or_weekly, ".Rdata")
+population_filename <- paste0("real_pop_augmented_", region, "_", daily_or_weekly, ".Rds")
+save(compartments, file = file.path(directory_save, region_filename))
 saveRDS(population, file = file.path(directory_save, population_filename))

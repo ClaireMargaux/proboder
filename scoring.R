@@ -8,7 +8,7 @@
 #' @return The mean squared prediction error.
 #' @export
 squared_prediction_error <- function(U_plot, real_beta_df){
-  SPE <- mean((U_plot$U_scaled - real_beta_df$beta)^2)
+  SPE <- ((U_plot$U_scaled - real_beta_df$beta)^2)
   return(SPE)
 }
 
@@ -22,7 +22,7 @@ squared_prediction_error <- function(U_plot, real_beta_df){
 #' @return The mean negative log predictive density.
 #' @export
 negative_log_predictive_density <- function(U_plot, real_beta_df){
-  NLPD <- mean(-log(dnorm(x = real_beta_df$beta, mean = U_plot$U_scaled, sd = sqrt(U_plot$P_U_scaled))))
+  NLPD <- (-log(dnorm(x = real_beta_df$beta, mean = U_plot$U_scaled, sd = sqrt(U_plot$P_U_scaled))))
   return(NLPD)
 }
 
@@ -41,7 +41,7 @@ continuous_ranked_probability_score <- function(U_plot, real_beta_df){
   y <- real_beta_df$beta
   omega <- (y - mu) / sigma
   
-  CRPS <- mean(sigma * (
+  CRPS <- (sigma * (
     omega * (2 * pnorm(omega) - 1) 
     + 2 * dnorm(omega) 
     - 1/sqrt(pi)

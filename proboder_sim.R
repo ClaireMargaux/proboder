@@ -4,7 +4,7 @@
 
 # Import functions
 source('~/Documents/GitHub/proboder/initialization.R')
-source('~/Documents/GitHub/proboder/functions_for_inference.R')
+source('~/Documents/GitHub/proboder/inference.R')
 source('~/Documents/GitHub/proboder/saving_loading.R')
 source('~/Documents/GitHub/proboder/scoring.R')
 source('~/Documents/GitHub/proboder/plotting.R')
@@ -29,7 +29,7 @@ tic("Duration of the whole workflow")
 #################################
 
 # Choose data to be imported
-type <- 'simulated_LSODA_log' # set 'simulated_LSODA' for simulated data using LSODA, and 'simulated_HETTMO' for simulated data using HETTMO
+type <- 'simulated_LSODA_sin' # set 'simulated_LSODA' for simulated data using LSODA, and 'simulated_HETTMO' for simulated data using HETTMO
 region <- ''
 daily_or_weekly <- ''
 
@@ -63,19 +63,17 @@ if(exists("best_params")){
                    l = best_params$l, scale = 1, noise_obs = params$obs_noise,
                    noise_X = sqrt(params$obs_noise), noise_U = 0.01,
                    noise_wiener_X = best_params$noise_wiener_X, noise_wiener_U = best_params$noise_wiener_U,
-                   pop = params$pop,
-                   num_points_between = 0)
+                   pop = params$pop)
   
 }else if(type == 'simulated_LSODA_sin'){
   
   initial_params <-
-    initialization(obs_with_noise, beta0 = real_beta[1], beta0prime = 0.3,
+    initialization(obs_with_noise, beta0 = real_beta[1], beta0prime = 0,
                    lambda = params$lambda, gamma = params$gamma, eta = params$eta,
                    l = 9.7, scale = 1, noise_obs = params$obs_noise,
                    noise_X = sqrt(params$obs_noise), noise_U = 0.01,
                    noise_wiener_X = 50, noise_wiener_U = 0.01,
-                   pop = params$pop,
-                   num_points_between = 0)
+                   pop = params$pop)
   
   # best_params
   #   l noise_wiener_X noise_wiener_U beta0prime         SPE     NLPD      CRPS
@@ -89,8 +87,7 @@ if(exists("best_params")){
                    l = 9.55, scale = 1, noise_obs = params$obs_noise,
                    noise_X = sqrt(params$obs_noise), noise_U = 0.01,
                    noise_wiener_X = 25, noise_wiener_U = 0.01,
-                   pop = params$pop, 
-                   num_points_between = 0)
+                   pop = params$pop)
   
   # best_params
   #    l noise_wiener_X noise_wiener_U beta0prime         SPE     NLPD      CRPS
@@ -100,39 +97,21 @@ if(exists("best_params")){
 
 # If using data simulated with HETTMO:
 # initial_params <-
-#   initialization(obs, beta0 = 0.9721224, beta0prime = -1.5,
-#                  lambda = 0.3703704, gamma = 0.3703704, eta = 0,
-#                  l = 1.2, scale = 3, noise_obs = 100,
-#                  noise_wiener_X = 1e+03, noise_wiener_U = 0.1,
+#   initialization(obs, beta0 = 1, beta0prime = 0,
+#                  lambda = 7/2.6, gamma = 7/2.6, eta = 0,
+#                  l = 8, scale = 1, noise_obs = 10,
+#                  noise_X = 1, noise_U = 0.1,
+#                  noise_wiener_X = 1, noise_wiener_U = 0.1,
 #                  pop = 1e+05)
 
 #####################################
 ############# INFERENCE #############
 #####################################
 
-# Data grid
-data_grid <- obs[,'t']
-
-# ODE grid
-ode_grid <- data_grid # no more points than observations
-
-# Adding more points than observations
-for (i in 1:(length(data_grid) - 1)) {
-  # Generate equidistant points between the current and next data point
-  equidistant_points <- seq(data_grid[i], data_grid[i + 1], length.out = initial_params$num_points_between + 2)[-c(1, initial_params$num_points_between + 2)]
-  # Append the equidistant points to the ODE grid
-  ode_grid <- c(ode_grid, equidistant_points)
-  ode_grid <- sort(ode_grid)
-}
-
-# Overall time grid
-time_grid <- sort(unique(c(data_grid, ode_grid)))
-
-# Time steps
-steps <- ode_grid[2]-ode_grid[1]
+grids <- generate_grid(obs, num_points_between = 0)
 
 # Run inference
-inference_results <- inference(time_grid, data_grid, ode_grid, steps, obs, initial_params)
+inference_results <- inference(grids, obs, initial_params)
 
 X_values <- inference_results$X_values
 U_values <- inference_results$U_values
@@ -180,17 +159,17 @@ colnames(real_beta_df) <- c('t','beta')
 # --------
 
 # Compute the different scores
-SPE <- squared_prediction_error(U_plot,real_beta_df)
-NLPD <-negative_log_predictive_density(U_plot,real_beta_df)
-CRPS <- continuous_ranked_probability_score(U_plot,real_beta_df)
+SPE <- mean(squared_prediction_error(U_plot,real_beta_df))
+NLPD <- mean(negative_log_predictive_density(U_plot,real_beta_df))
+CRPS <- mean(continuous_ranked_probability_score(U_plot,real_beta_df))
 
 # Create a data frame with the results
 results <- data.frame(
-  Method = c("Squared Prediction Error", "Negative Log Predictive Density", "Continuous Ranked Probability Score"),
+  Method = c("Mean Squared Prediction Error", "Mean Negative Log Predictive Density", "Mean Continuous Ranked Probability Score"),
   Value = c(SPE, NLPD, CRPS)
 )
 
-# # Create nice table using knitr and kableExtra
+# Create nice table using knitr and kableExtra
 table <- kable(results, align = "c", caption = "Scoring Methods Results")
 (styled_table <- kableExtra::kable_styling(table, bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE))
 
@@ -213,33 +192,33 @@ save_kable(styled_table, file = file_path_html, type = "html")
 # Plotting
 # --------
 
-# Plot simulated compartment counts and noisy simulated observations.
-file_path <- file.path(directory_res, "sim-counts.pdf")
-pdf(file_path, width = 8, height = 6)
-plot_sim(obs, obs_with_noise)
-dev.off()
-plot_sim(obs, obs_with_noise)
-
-# Plot compartment counts inferred from simulated data
-file_path <- file.path(directory_res, "SEIRD-counts.pdf")
-pdf(file_path, width = 10, height = 6)
-plot_data_sim(obs,obs_with_noise,X_plot)
-dev.off()
-plot_data_sim(obs,obs_with_noise,X_plot)
-
-# Plot compartment counts separately
-plots <- plot_compartment(obs,obs_with_noise,X_plot)
-for (i in 1:5) {
-  file_path <- file.path(directory_res, paste0("SEIRD-counts-sep-with-CI-", i, ".pdf"))
-  pdf(file_path, width = 8, height = 6)
-  plot <- plots[[i]]
-  print(plot)
-  dev.off()
-}
-for (i in 1:5) {
-  plot <- plots[[i]]
-  print(plot)
-}
+# # Plot simulated compartment counts and noisy simulated observations.
+# file_path <- file.path(directory_res, "sim-counts.pdf")
+# pdf(file_path, width = 8, height = 6)
+# plot_sim(obs, obs_with_noise)
+# dev.off()
+# plot_sim(obs, obs_with_noise)
+# 
+# # Plot compartment counts inferred from simulated data
+# file_path <- file.path(directory_res, "SEIRD-counts.pdf")
+# pdf(file_path, width = 10, height = 6)
+# plot_data_sim(obs,obs_with_noise,X_plot)
+# dev.off()
+# plot_data_sim(obs,obs_with_noise,X_plot)
+# 
+# # Plot compartment counts separately
+# plots <- plot_compartment(obs,obs_with_noise,X_plot)
+# for (i in 1:5) {
+#   file_path <- file.path(directory_res, paste0("SEIRD-counts-sep-with-CI-", i, ".pdf"))
+#   pdf(file_path, width = 8, height = 6)
+#   plot <- plots[[i]]
+#   print(plot)
+#   dev.off()
+# }
+# for (i in 1:5) {
+#   plot <- plots[[i]]
+#   print(plot)
+# }
 
 # Get some fixed values to plot together with contact rate
 lambda <- round(initial_params$lambda, 4)

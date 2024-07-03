@@ -13,7 +13,7 @@
 #' @param noise_wiener_X Noise of the Wiener process modelling X.
 #' @param noise_wiener_U Noise of the Wiener process modelling U.
 #' @param pop Population.
-#' @param num_points_between Number of in-between points to add to the ODE grid.
+#' @param num_initial_values Number of values over which we take the mean to initialize X.
 #' @return A list containing initialized parameters and matrices.
 #' @export
 initialization <- function(obs, beta0, beta0prime, 
@@ -22,7 +22,7 @@ initialization <- function(obs, beta0, beta0prime,
                            noise_X, noise_U,
                            noise_wiener_X, noise_wiener_U,
                            pop,
-                           num_points_between = 0){
+                           num_initial_values = 1){
   
   # Get vector indicating which compartments have been observed
   get_observation_vector <- function(obs_data) {
@@ -48,9 +48,8 @@ initialization <- function(obs, beta0, beta0prime,
   
   # Initialize compartment counts and their two first derivatives
   X0 <- numeric(5)
-  num_initial_values <- 5
   X0[1] <- ifelse("S" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "S")]), pop)
-  X0[2] <- ifelse("E" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "E")]), 0)
+  X0[2] <- ifelse("E" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "E")]), 1)
   X0[3] <- ifelse("I" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "I")]), 0)
   X0[4] <- ifelse("R" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "R")]), 0)
   X0[5] <- ifelse("D" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "D")]), 0)
@@ -94,8 +93,54 @@ initialization <- function(obs, beta0, beta0prime,
   out <- list(X = X, U = U, P_X = P_X, P_U = P_U, 
               F_X = F_X, F_U = F_U, L_X = L_X, L_U = L_U, 
               noise_wiener_X = noise_wiener_X, noise_wiener_U = noise_wiener_U,
-              R = R, H = H, pop = pop, num_points_between = num_points_between, 
+              R = R, H = H, pop = pop, 
               lambda = lambda, gamma = gamma, eta = eta, l = l)
 
   return(out)
+}
+
+#' Generate Data Grid for inference
+#' 
+#' Generate a data grid with optional additional points between observations for ODE evaluation.
+#' 
+#' @param obs Data frame containing the observed compartments.
+#' @param num_points_between Integer specifying the number of points to add between observations.
+#' 
+#' @return A list containing the overall time grid, data grid, ODE grid, and time steps.
+#' @export
+generate_grid <- function(obs, num_points_between) {
+  
+  # Extract the observed time points
+  data_grid <- obs$t
+  
+  # Initialize the ODE grid with observed time points
+  ode_grid <- data_grid
+  
+  if (num_points_between > 0) {
+    # Generate equidistant points between observed time points
+    for (i in 1:(length(data_grid) - 1)) {
+      equidistant_points <- seq(
+        from = data_grid[i], 
+        to = data_grid[i + 1], 
+        length.out = num_points_between + 2
+      )[-c(1, num_points_between + 2)]
+      
+      # Append the equidistant points to the ODE grid and sort
+      ode_grid <- sort(c(ode_grid, equidistant_points))
+    }
+  }
+  
+  # Combine data and ODE grids, ensuring unique and sorted time points
+  time_grid <- sort(unique(c(data_grid, ode_grid)))
+  
+  # Calculate time steps
+  steps <- ode_grid[2] - ode_grid[1]
+  
+  # Return the grids and time steps as a list
+  list(
+    time_grid = time_grid, 
+    data_grid = data_grid, 
+    ode_grid = ode_grid, 
+    steps = steps
+  )
 }

@@ -1,0 +1,424 @@
+---
+title: "Workflow ProbODER LSODA"
+author: "Claire Descombes"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Import necessary functions
+
+```{r}
+# Import functions
+source('~/Documents/GitHub/proboder/simulate_data_LSODA.R')
+source('~/Documents/GitHub/proboder/initialization.R')
+source('~/Documents/GitHub/proboder/inference.R')
+source('~/Documents/GitHub/proboder/saving_loading.R')
+source('~/Documents/GitHub/proboder/scoring.R')
+source('~/Documents/GitHub/proboder/plotting.R')
+
+# Necessary packages
+library(Matrix) # for sparseMatrix() and expm()
+library(numDeriv) # for jacobian()
+library(matrixcalc) # for svd.inverse()
+library(knitr) # for nice tables
+library(kableExtra) # for storing nice tables
+library(ggplot2) # for ggplot()
+library(gridExtra) # for multiple plots
+library(tictoc) # for benchmarking
+library(progress) # to track progress of grid search
+library(dplyr) # for treating data
+```
+
+## Simulation A
+
+```{r cars}
+# Time grid
+steps <- 1
+max_time <- 30
+
+# Fixed parameters
+lambda <- 1/(2.6) # latency
+gamma <- 1/(2.6) # recovery
+eta <- 0 # fatality
+pop <- 500000
+
+# Beta function
+beta <- function(t){2*cos(t/30)-1}
+
+# Starting compartment counts
+xstart <- c(S = 499970, E = 5, I = 5, R = 5, D = 5)
+
+# If noisy observation wished
+noise <- 0 # noise to add on the data
+seed <- NA # any integer, for reproducibility (set NA otherwise)
+
+# Data simulation
+res <- simulate_data_LSODA(
+    noise,
+    seed,
+    steps,
+    max_time,
+    lambda, gamma, eta,
+    pop, 
+    beta,
+    xstart)
+
+# Simulated data sets
+obs <- res[[1]]
+df_beta <- res[[2]]
+
+# Visualization
+plotting_simulated_data_lsoda(
+  obs = obs,
+  df_beta = df_beta,
+  log = TRUE)
+
+obs <- obs
+obs_with_noise <- obs
+
+### Initialization, inference, plotting
+
+l <- 9.7 # lengthscale
+
+initial_params <-
+    initialization(obs = obs, 
+                   beta0 = df_beta$beta[1], 
+                   beta0prime = 0,
+                   lambda = lambda, 
+                   gamma = gamma, 
+                   eta = eta,
+                   l = l, 
+                   scale = 1, 
+                   noise_obs = noise,
+                   noise_X = sqrt(noise), 
+                   noise_U = 0.01,
+                   noise_wiener_X = 50, 
+                   noise_wiener_U = 0.01,
+                   pop = pop,
+                   num_points_between = 0)
+
+grids <- generate_grid(obs, num_points_between = 0)
+
+# Run inference
+inference_results <- inference(grids, obs, initial_params)
+
+X_values <- inference_results$X_values
+U_values <- inference_results$U_values
+P_X_values <- inference_results$P_X_values
+P_U_values <- inference_results$P_U_values
+
+# directory_res <- "~/Documents/GitHub/proboder/Results/sin"
+# save_results_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
+
+processed_data <- load_and_process_data(directory_res,time_grid)
+U_plot <- processed_data$U_plot
+X_plot <- processed_data$X_plot
+
+
+# Plot simulated compartment counts and noisy simulated observations.
+plot_sim(obs, obs_with_noise)
+
+# Plot compartment counts inferred from simulated data
+plot_data_sim(obs,obs_with_noise,X_plot)
+
+# Plot compartment counts separately
+plots <- plot_compartment(obs,obs_with_noise,X_plot)
+for (i in 1:5) {
+  plot <- plots[[i]]
+  print(plot)
+}
+
+# Plot simulated contact rate
+plot_sim_contact_rate(df_beta, lambda, gamma, eta)
+
+# Plot contact rate inferred from simulated data
+plot_contact_rate_with_CI(U_plot, df_beta, lambda, gamma, eta, l)
+```
+
+## Simulation B
+
+```{r cars}
+noise <- 5 # noise to add on the data
+set.seed(5) # for reproducibility
+
+# Time grid
+steps <- 1
+grid <- seq(0,100,by=steps)
+n <- length(grid)
+
+# Parameters
+lambda <- 1/(2.6) # latency
+gamma <- 1/(2.6) # recovery
+eta <- 0 # fatality
+pop <- 500000
+parms  <- c(lambda = lambda, gamma = gamma, eta = eta, pop = pop)
+
+# Beta function: sine
+beta <- function(t){0.3*cos(t/20)+0.6}
+beta_val <- beta(grid)
+beta0 <- beta_val[1]
+
+# Solving
+out <- lsoda(xstart, grid, SPCmod, parms)
+
+# Data frame
+df <- data.frame(t <- grid, S <- out[,"S"], E <- out[,"E"], I <- out[,"I"], R <- out[,"R"], D <- out[,"D"])
+colnames(df) <- c("t","S","E","I","R","D")
+df_beta <- data.frame(t <- grid, beta_val <- beta_val)
+
+# Adding noise
+y <- df[,c("S","E","I","R","D")]
+y_with_noise <- y + matrix(rnorm(n*n, mean = 0, sd = sqrt(noise)), nrow = n)
+df_with_noise <- data.frame(t <- grid, y_with_noise)
+colnames(df_with_noise) <- c("t","S","E","I","R","D")
+df_with_noise$D <- 0
+
+# Plotting
+countsplot <- ggplot(df, aes(x = t, y = S)) +
+  #geom_line(aes(color = 'S')) +
+  geom_line(aes(x = t, y = E, color = 'E')) +
+  geom_line(aes(x = t, y = I, color = 'I')) +
+  #geom_line(aes(x = t, y = R, color = 'R')) +
+  geom_line(aes(x = t, y = D, color = 'D')) +
+  theme_minimal() +
+  #scale_y_continuous(trans='log10') + 
+  ylab("log(count)") +
+  xlab("time") + 
+  ggtitle("Observations without noise") 
+
+countsplot
+
+betaplot <- ggplot(df_beta, aes(x = t, y = beta_val)) +
+  geom_line(aes(color = 'beta')) +
+  theme_minimal() +
+  ylab("beta") +
+  xlab("time") +
+  ggtitle("Simulated beta") 
+
+betaplot
+
+obs <- df
+obs_with_noise <- df_with_noise
+params <- data.frame(pop=pop,lambda=lambda,gamma=gamma,eta=eta,obs_noise=noise)
+
+# Create data frame for real beta values
+colnames(df_beta) <- c('t','beta')
+
+### Initialization, inference, plotting
+
+initial_params <-
+    initialization(obs_with_noise, 
+                   beta0 = df_beta$beta[1], 
+                   beta0prime = 0,
+                   lambda = params$lambda, 
+                   gamma = params$gamma, 
+                   eta = params$eta,
+                   l = 9.7, scale = 1, 
+                   noise_obs = params$obs_noise,
+                   noise_X = sqrt(params$obs_noise), noise_U = 0.01,
+                   noise_wiener_X = 50, noise_wiener_U = 0.01,
+                   pop = params$pop,
+                   num_points_between = 0)
+
+# Data grid
+data_grid <- obs[,'t']
+
+# ODE grid
+ode_grid <- data_grid # no more points than observations
+
+# Overall time grid
+time_grid <- sort(unique(c(data_grid, ode_grid)))
+
+# Time steps
+steps <- ode_grid[2]-ode_grid[1]
+```
+
+```{r}
+# Run inference
+inference_results <- inference(time_grid, data_grid, ode_grid, steps, obs, initial_params)
+
+X_values <- inference_results$X_values
+U_values <- inference_results$U_values
+P_X_values <- inference_results$P_X_values
+P_U_values <- inference_results$P_U_values
+
+directory_res <- "~/Documents/GitHub/proboder/Results/sin"
+
+save_results_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
+
+processed_data <- load_and_process_data(directory_res,time_grid)
+U_plot <- processed_data$U_plot
+X_plot <- processed_data$X_plot
+
+
+# Plot simulated compartment counts and noisy simulated observations.
+plot_sim(obs, obs_with_noise)
+
+# Plot compartment counts inferred from simulated data
+plot_data_sim(obs,obs_with_noise,X_plot)
+
+# Plot compartment counts separately
+plots <- plot_compartment(obs,obs_with_noise,X_plot)
+for (i in 1:5) {
+  plot <- plots[[i]]
+  print(plot)
+}
+
+# Get some fixed values to plot together with contact rate
+lambda <- round(initial_params$lambda, 4)
+gamma <- round(initial_params$gamma, 4)
+eta <- initial_params$eta
+l <- initial_params$l
+
+# Plot simulated contact rate
+plot_sim_contact_rate(df_beta, lambda, gamma, eta)
+
+# Plot contact rate inferred from simulated data
+plot_contact_rate_with_CI(U_plot, df_beta, lambda, gamma, eta, l)
+```
+
+## Simulation C
+
+```{r cars}
+noise <- 0 # noise to add on the data
+set.seed(5) # for reproducibility
+
+# Time grid
+steps <- 1
+grid <- seq(0,100,by=steps)
+n <- length(grid)
+
+# Parameters
+lambda <- 1/(2.6) # latency
+gamma <- 1/(2.6) # recovery
+eta <- 0 # fatality
+pop <- 500000
+parms  <- c(lambda = lambda, gamma = gamma, eta = eta, pop = pop)
+
+# Beta function: sine
+beta <- function(t){0.3*cos(t/20)+0.6}
+beta_val <- beta(grid)
+beta0 <- beta_val[1]
+
+# Solving
+out <- lsoda(xstart, grid, SPCmod, parms)
+
+# Data frame
+df <- data.frame(t <- grid, S <- out[,"S"], E <- out[,"E"], I <- out[,"I"], R <- out[,"R"], D <- out[,"D"])
+colnames(df) <- c("t","S","E","I","R","D")
+df_beta <- data.frame(t <- grid, beta_val <- beta_val)
+
+# Adding noise
+y <- df[,c("S","E","I","R","D")]
+y_with_noise <- y + matrix(rnorm(n*n, mean = 0, sd = sqrt(noise)), nrow = n)
+df_with_noise <- data.frame(t <- grid, y_with_noise)
+colnames(df_with_noise) <- c("t","S","E","I","R","D")
+df_with_noise$D <- 0
+
+# Plotting
+countsplot <- ggplot(obs_with_noise, aes(x = t, y = S)) +
+  #geom_line(aes(color = 'S')) +
+  geom_line(aes(x = t, y = E, color = 'E')) +
+  geom_line(aes(x = t, y = I, color = 'I')) +
+  #geom_line(aes(x = t, y = R, color = 'R')) +
+  geom_line(aes(x = t, y = D, color = 'D')) +
+  theme_minimal() +
+  #scale_y_continuous(trans='log10') + 
+  ylab("log(count)") +
+  xlab("time") + 
+  ggtitle("Observations without noise") 
+
+countsplot
+
+betaplot <- ggplot(df_beta, aes(x = t, y = beta_val)) +
+  geom_line(aes(color = 'beta')) +
+  theme_minimal() +
+  ylab("beta") +
+  xlab("time") +
+  ggtitle("Simulated beta") 
+
+betaplot
+
+obs <- df
+obs_with_noise <- df_with_noise
+params <- data.frame(pop=pop,lambda=lambda,gamma=gamma,eta=eta,obs_noise=noise)
+
+# Create data frame for real beta values
+colnames(df_beta) <- c('t','beta')
+
+### Initialization, inference, plotting
+
+initial_params <-
+    initialization(obs_with_noise, 
+                   beta0 = df_beta$beta[1], 
+                   beta0prime = 0,
+                   lambda = params$lambda, 
+                   gamma = params$gamma, 
+                   eta = params$eta,
+                   l = 9.7, scale = 1, 
+                   noise_obs = params$obs_noise,
+                   noise_X = sqrt(params$obs_noise), noise_U = 0.01,
+                   noise_wiener_X = 50, noise_wiener_U = 0.01,
+                   pop = params$pop,
+                   num_points_between = 0)
+
+# Data grid
+data_grid <- obs[,'t']
+
+# ODE grid
+ode_grid <- data_grid # no more points than observations
+
+# Overall time grid
+time_grid <- sort(unique(c(data_grid, ode_grid)))
+
+# Time steps
+steps <- ode_grid[2]-ode_grid[1]
+```
+
+```{r}
+# Run inference
+inference_results <- inference(time_grid, data_grid, ode_grid, steps, obs, initial_params)
+
+X_values <- inference_results$X_values
+U_values <- inference_results$U_values
+P_X_values <- inference_results$P_X_values
+P_U_values <- inference_results$P_U_values
+
+directory_res <- "~/Documents/GitHub/proboder/Results/sin"
+
+save_results_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
+
+processed_data <- load_and_process_data(directory_res,time_grid)
+U_plot <- processed_data$U_plot
+X_plot <- processed_data$X_plot
+
+
+# Plot simulated compartment counts and noisy simulated observations.
+plot_sim(obs, obs_with_noise)
+
+# Plot compartment counts inferred from simulated data
+plot_data_sim(obs,obs_with_noise,X_plot)
+
+# Plot compartment counts separately
+plots <- plot_compartment(obs,obs_with_noise,X_plot)
+for (i in 1:5) {
+  plot <- plots[[i]]
+  print(plot)
+}
+
+# Get some fixed values to plot together with contact rate
+lambda <- round(initial_params$lambda, 4)
+gamma <- round(initial_params$gamma, 4)
+eta <- initial_params$eta
+l <- initial_params$l
+
+# Plot simulated contact rate
+plot_sim_contact_rate(df_beta, lambda, gamma, eta)
+
+# Plot contact rate inferred from simulated data
+plot_contact_rate_with_CI(U_plot, df_beta, lambda, gamma, eta, l)
+```

@@ -4,7 +4,7 @@
 
 # Import functions
 source('~/Documents/GitHub/proboder/initialization.R')
-source('~/Documents/GitHub/proboder/functions_for_inference.R')
+source('~/Documents/GitHub/proboder/inference.R')
 source('~/Documents/GitHub/proboder/saving_loading.R')
 source('~/Documents/GitHub/proboder/plotting.R')
 

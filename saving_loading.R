@@ -16,7 +16,7 @@
 #' @export
 load_data <- function(type, region, daily_or_weekly, directory) {
   # Check if type is valid
-  if (!(type %in% c('simulated_LSODA_sin', 'simulated_LSODA_log', 'simulated_HETTMO', 'real'))) {
+  if (!(type %in% c('simulated_LSODA_sin', 'simulated_LSODA_log', 'simulated_HETTMO', 'real','real_augmented'))) {
     stop("Error: Invalid type.")
   }
   
@@ -64,6 +64,15 @@ load_data <- function(type, region, daily_or_weekly, directory) {
     population_filename <- paste0("real_pop_", region, "_", daily_or_weekly, ".Rds")
     load(file.path(directory, region_filename))
     obs <- observations
+    population <- readRDS(file.path(directory, population_filename))
+    real_beta <- NULL 
+    return <- list(obs = obs, population = population)
+  }
+  else if (type == 'real_augmented') {
+    region_filename <- paste0("real_data_augmented_", region, "_", daily_or_weekly, ".Rdata")
+    population_filename <- paste0("real_pop_augmented_", region, "_", daily_or_weekly, ".Rds")
+    load(file.path(directory, region_filename))
+    obs <- compartments
     population <- readRDS(file.path(directory, population_filename))
     real_beta <- NULL 
     return <- list(obs = obs, population = population)
