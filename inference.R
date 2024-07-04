@@ -1,26 +1,20 @@
-#' Sigmoid function
+#' (Scaled) sigmoid function
 #'
-#' Calculate the sigmoid (logistic) function for the given input.
+#' Calculate the sigmoid (logistic) function for the given input, up to a scaling factor of 5.
 #'
 #' @param z Numeric input.
 #' @return Sigmoid value of the input.
-#' @examples
-#' sigmoid(0) # Returns 0.5
-#' sigmoid(1) # Returns 0.7310586
 #' @export
 sigmoid <- function(z) {
   return(5 / (1 + exp(-z)))
 }
 
-#' Logit function
+#' (Scaled) logit function
 #'
-#' Calculate the logit (inverse of sigmoid) function for the given input.
+#' Calculate the logit (inverse of sigmoid) function for the given input, up to a scaling factor of 5.
 #'
 #' @param p Numeric input.
 #' @return Logit value of the input.
-#' @examples
-#' logit(0.5) # Returns 0
-#' logit(0.7310586) # Returns 1
 #' @export
 logit <- function(p) {
   return(-log(5/p - 1))
@@ -30,32 +24,44 @@ logit <- function(p) {
 #'
 #' This function evaluates the ordinary differential equation (ODE) for a given set of parameters.
 #'
-#' @param X0 Numeric vector of size 5 representing the solution of the ODE.
+#' @param model String, type of model to be used ('SEIRD' or 'SEIR' available).
+#' @param X0 Numeric vector representing the solution of the ODE.
 #' @param beta Numeric value representing the latent parameter of the ODE.
 #' @param pop Integer representing the total population.
 #' @param lambda Numeric value representing the latency rate.
 #' @param gamma Numeric value representing the recovery rate.
 #' @param eta Numeric value representing the fatality rate.
-#' @return Numeric vector of size 5 representing the evaluation of the ODE.
+#' @return Numeric vector representing the evaluation of the ODE.
 #' @export
-f <- function(X0, beta, pop, lambda, gamma, eta) {
+f <- function(model, X0, beta, pop, lambda, gamma, eta = 0) {
   # Arguments:
-  #   X0: Numeric vector of size 5, solution of the ODE
-  #   beta: Numeric with values in [0,1], latent parameter of the ODE
+  #   model: String, type of model to be used ('SEIRD' or 'SEIR' available)
+  #   X0: Numeric vector, solution of the ODE
+  #   beta: Numeric with value in R+, latent parameter of the ODE
   #   pop: Integer, total population
-  #   lambda: Numeric, latency rate
-  #   gamma: Numeric, recovery rate
-  #   eta: Numeric, fatality rate
+  #   lambda: Numeric with value in R+, latency rate
+  #   gamma: Numeric with value in R+, recovery rate
+  #   eta: Numeric with value in R+, fatality rate
   #
   # Returns:
-  #   sol: Numeric vector of size 4 representing the evaluation of the ODE
+  #   sol: Numeric vector representing the evaluation of the ODE
 
-  dS <- - beta * X0[1] * X0[3] / pop
-  dE <- beta * X0[1] * X0[3] / pop - lambda * X0[2]
-  dI <- lambda * X0[2] - gamma * X0[3] - eta * X0[3]
-  dR <- gamma * X0[3]
-  dD <- eta * X0[3]
-  res <- c(dS, dE, dI, dR, dD)
+  if (model == 'SEIRD') {
+    dS <- - beta * X0[1] * X0[3] / pop
+    dE <- beta * X0[1] * X0[3] / pop - lambda * X0[2]
+    dI <- lambda * X0[2] - gamma * X0[3] - eta * X0[3]
+    dR <- gamma * X0[3]
+    dD <- eta * X0[3]
+    res <- c(dS, dE, dI, dR, dD) 
+  }
+  
+  if (model == 'SEIR') {
+    dS <- - beta * X0[1] * X0[3] / pop
+    dE <- beta * X0[1] * X0[3] / pop - lambda * X0[2]
+    dI <- lambda * X0[2] - gamma * X0[3] - eta * X0[3]
+    dR <- gamma * X0[3]
+    res <- c(dS, dE, dI, dR)
+  }
   
   return(res)
 }
@@ -64,7 +70,8 @@ f <- function(X0, beta, pop, lambda, gamma, eta) {
 #'
 #' This function calculates the Jacobian matrix of the ODE function using the jacobian function.
 #'
-#' @param X0 Numeric vector of size 4 representing the solution of the ODE.
+#' @param model String, type of model to be used ('SEIRD' or 'SEIR' available).
+#' @param X0 Numeric vector representing the solution of the ODE.
 #' @param beta Numeric value representing the latent parameter of the ODE.
 #' @param pop Integer representing the total population.
 #' @param lambda Numeric value representing the latency rate.
@@ -72,20 +79,21 @@ f <- function(X0, beta, pop, lambda, gamma, eta) {
 #' @param eta Numeric value representing the fatality rate.
 #' @return The Jacobian matrix of the ODE function.
 #' @export
-jacobian_f <- function(X0, beta, pop, lambda, gamma, eta) {
+jacobian_f <- function(model, X0, beta, pop, lambda, gamma, eta = 0) {
   # Arguments:
-  #   X0: Numeric vector of size 4, solution of the ODE
-  #   beta: Numeric with values in [0,1], latent parameter of the ODE
+  #   model: String, type of model to be used ('SEIRD' or 'SEIR' available)
+  #   X0: Numeric vector, solution of the ODE
+  #   beta: Numeric with values in R+, latent parameter of the ODE
   #   pop: Integer, total population
-  #   lambda: Numeric, latency rate
-  #   gamma: Numeric, recovery rate
-  #   eta: Numeric, fatality rate
+  #   lambda: Numeric with value in R+, latency rate
+  #   gamma: Numeric with value in R+, recovery rate
+  #   eta: Numeric with value in R+, fatality rate
   #
   # Returns:
   #   The Jacobian matrix of the ODE function
   
-  f1 <- function(X0) f(X0, beta = beta, pop = pop, lambda = lambda, gamma = gamma, eta = eta)
-  f2 <- function(beta) f(X0 = X0, beta, pop = pop, lambda = lambda, gamma = gamma, eta = eta)
+  f1 <- function(X0) f(model = model, X0, beta = beta, pop = pop, lambda = lambda, gamma = gamma, eta = eta)
+  f2 <- function(beta) f(model = model, X0 = X0, beta, pop = pop, lambda = lambda, gamma = gamma, eta = eta)
   out <- cbind(jacobian(f1, x = X0), jacobian(f2, x = beta))
   return(out)
 }
@@ -94,32 +102,48 @@ jacobian_f <- function(X0, beta, pop, lambda, gamma, eta) {
 #'
 #' This function evaluates the measurement model for a given set of parameters.
 #'
-#' @param X Numeric vector of size 15 representing the solution of the ODE and its 2 first derivatives.
+#' @param model String, type of model to be used ('SEIRD' or 'SEIR' available).
+#' @param X Numeric vector representing the solution of the ODE and its 2 first derivatives.
 #' @param U Numeric vector of size 2 representing the latent parameter of the ODE and its first derivative.
 #' @param pop Integer representing the total population.
 #' @param lambda Numeric value representing the latency rate.
 #' @param gamma Numeric representing the recovery rate.
 #' @param eta Numeric representing the fatality rate.
-#' @return Numeric vector of size 5 representing the evaluation of the measurement model.
+#' @return Numeric vector representing the evaluation of the measurement model.
 #' @export
-h <- function(X, U, pop, lambda, gamma, eta) {
+h <- function(model, X, U, pop, lambda, gamma, eta = 0) {
   # Arguments:
-  #   X: Numeric vector of size 12, solution of the ODE and its 2 first derivatives
+  #   model: String, type of model to be used ('SEIRD' or 'SEIR' available)
+  #   X: Numeric vector, solution of the ODE and its 2 first derivatives
   #   U: Numeric vector of size 2, latent parameter of the ODE and its first derivative
   #   pop: Integer, total population
-  #   lambda: Numeric, latency rate
-  #   gamma: Numeric, recovery rate
-  #   eta: Numeric, fatality rate
+  #   lambda: Numeric with value in R+, latency rate
+  #   gamma: Numeric with value in R+, recovery rate
+  #   eta: Numeric with value in R+, fatality rate
   #
   # Returns:
-  #   sol: Numeric vector of size 4 representing the evaluation of the measurement model
+  #   sol: Numeric vector representing the evaluation of the measurement model
   
   beta <- U[1]
-  beta <- sigmoid(beta) # rescaling of beta to [0,1]
+  beta <- sigmoid(beta) # rescaling of beta to [0,5]
   
-  X0 <- X[1:5]
-  X1 <- X[6:10]
-  ODE <- f(X0, beta, pop, lambda, gamma, eta)
+  if (model == 'SEIRD') {
+    X0 <- X[1:5]
+    X1 <- X[6:10]
+  }
+  
+  if (model == 'SEIR') {
+    X0 <- X[1:4]
+    X1 <- X[5:8]
+  }
+
+  ODE <- f(model = model,
+           X0 = X0, 
+           beta = beta, 
+           pop = pop, 
+           lambda = lambda, 
+           gamma = gamma, 
+           eta = eta)
   
   sol <- c(X1 - ODE)
   
@@ -130,7 +154,8 @@ h <- function(X, U, pop, lambda, gamma, eta) {
 #'
 #' This function calculates the Jacobian matrix of the measurement model using the jacobian function.
 #'
-#' @param X Vector of length 12 representing the solution of the ODE and its 2 first derivatives.
+#' @param model String, type of model to be used ('SEIRD' or 'SEIR' available).
+#' @param X Vector representing the solution of the ODE and its 2 first derivatives.
 #' @param U Vector of length 2 representing the latent parameter of the ODE and its first derivative.
 #' @param pop Integer representing the total population.
 #' @param lambda Numeric value representing the latency rate.
@@ -138,9 +163,10 @@ h <- function(X, U, pop, lambda, gamma, eta) {
 #' @param eta Numeric representing the fatality rate.
 #' @return The Jacobian matrix of the measurement model.
 #' @export
-jacobian_h <- function(X, U, pop, lambda, gamma, eta) {
+jacobian_h <- function(model, X, U, pop, lambda, gamma, eta = 0) {
   # Arguments:
-  #   X: Vector of length 12 representing the solution of the ODE and its 2 first derivatives
+  #   model: String, type of model to be used ('SEIRD' or 'SEIR' available)
+  #   X: Vector representing the solution of the ODE and its 2 first derivatives
   #   U: Vector of length 2 representing the latent parameter of the ODE and its first derivative
   #   pop: Integer, total population
   #   lambda: Numeric, latency rate
@@ -150,8 +176,8 @@ jacobian_h <- function(X, U, pop, lambda, gamma, eta) {
   # Returns:
   #   The Jacobian matrix of the measurement model
   
-  h1 <- function(X) h(X, U = U, pop = pop, lambda = lambda, gamma = gamma, eta = eta)
-  h2 <- function(U) h(X = X, U, pop = pop, lambda = lambda, gamma = gamma, eta = eta)
+  h1 <- function(X) h(model = model, X = X, U = U, pop = pop, lambda = lambda, gamma = gamma, eta = eta)
+  h2 <- function(U) h(model = model, X = X, U, pop = pop, lambda = lambda, gamma = gamma, eta = eta)
   out <- cbind(jacobian(h1, x = X), jacobian(h2, x = U))
   return(out)
 }
@@ -321,14 +347,16 @@ matrix_P <- function(P_X, P_U) {
 #' This function performs inference over a specified time grid using a state-space model.
 #' It iteratively updates the state estimates and covariances based on observations and predictions.
 #'
+#' @param model String, type of model to be used ('SEIRD' or 'SEIR' available).
 #' @param grids List of time grids for inference.
 #' @param obs Data frame, contains the dates and the compartment counts.
 #' @param initial_params List of initial parameters obtained from the initialization function.
 #'
 #' @return A list with the inferred values of X, U, P_X, and P_U.
 #' @export
-inference <- function(grids, obs, initial_params){
+inference <- function(model, grids, obs, initial_params){
   # Arguments:
+  #   model: String, type of model to be used ('SEIRD' or 'SEIR' available).
   #   grids: List of time grids for inference, has the following entries:
   #
   #   time_grid: Numeric vector, time grid for the inference.
@@ -339,7 +367,7 @@ inference <- function(grids, obs, initial_params){
   #   obs: Data frame, contains the dates and the compartment counts.
   #   initial_params: List of initial parameters obtained from the initialization function, has the following entries:
   #
-  #   X: Vector of length 15 representing the solution of the ODE and its 2 first derivatives.
+  #   X: Vector representing the solution of the ODE and its 2 first derivatives.
   #   U: Vector of length 2 representing the latent parameter of the ODE and its first derivative.
   #   P_X: Numeric matrix, predicted covariance of X.
   #   P_U: Numeric matrix, predicted covariance of U.
@@ -448,10 +476,20 @@ inference <- function(grids, obs, initial_params){
       P <- matrix_P(P_X_pred, P_U_pred)
       y <- unlist(obs_without_time[i,])
       updated_obs <- update_of_observations(m = m, P = P, y = y, H = H, R = R)
-      X_pred <- as.vector(updated_obs[[1]][1:15])
-      P_X_pred <- as.matrix(updated_obs[[2]][1:15, 1:15])
-      U_pred <- as.vector(updated_obs[[1]][16:17])
-      P_U_pred <- as.matrix(updated_obs[[2]][16:17, 16:17])
+      
+      if (model == 'SEIRD') {
+        X_pred <- as.vector(updated_obs[[1]][1:15])
+        P_X_pred <- as.matrix(updated_obs[[2]][1:15, 1:15]) 
+        U_pred <- as.vector(updated_obs[[1]][16:17])
+        P_U_pred <- as.matrix(updated_obs[[2]][16:17, 16:17])
+      }
+      
+      if (model == 'SEIR') {
+        X_pred <- as.vector(updated_obs[[1]][1:12])
+        P_X_pred <- as.matrix(updated_obs[[2]][1:12, 1:12])
+        U_pred <- as.vector(updated_obs[[1]][13:14])
+        P_U_pred <- as.matrix(updated_obs[[2]][13:14, 13:14])
+      }
     }
     
     # Update of states if required at the current time point
@@ -459,14 +497,24 @@ inference <- function(grids, obs, initial_params){
       m <- c(X_pred, U_pred)
       P <- matrix_P(P_X_pred, P_U_pred)
       
-      h_val <- h(X_pred, U_pred, pop, lambda, gamma, eta)
-      J_val <- jacobian_h(X_pred, U_pred, pop, lambda, gamma, eta)
+      h_val <- h(model, X_pred, U_pred, pop, lambda, gamma, eta)
+      J_val <- jacobian_h(model, X_pred, U_pred, pop, lambda, gamma, eta)
       
       updated_states <- update_of_states(m = m, P = P, h = h_val, J = J_val)
-      X_pred <- as.vector(updated_states[[1]][1:15])
-      P_X_pred <- as.matrix(updated_states[[2]][1:15, 1:15])
-      U_pred <- as.vector(updated_states[[1]][16:17])
-      P_U_pred <- as.matrix(updated_states[[2]][16:17, 16:17])
+      
+      if (model == 'SEIRD') {
+        X_pred <- as.vector(updated_states[[1]][1:15])
+        P_X_pred <- as.matrix(updated_states[[2]][1:15, 1:15]) 
+        U_pred <- as.vector(updated_states[[1]][16:17])
+        P_U_pred <- as.matrix(updated_states[[2]][16:17, 16:17])
+      }
+      
+      if (model == 'SEIR') {
+        X_pred <- as.vector(updated_states[[1]][1:12])
+        P_X_pred <- as.matrix(updated_states[[2]][1:12, 1:12])
+        U_pred <- as.vector(updated_states[[1]][13:14])
+        P_U_pred <- as.matrix(updated_states[[2]][13:14, 13:14])
+      }
     }
   
     # Store current values and covariances

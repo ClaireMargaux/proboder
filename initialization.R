@@ -2,6 +2,7 @@
 #' 
 #' Initializes parameters and matrices for the given epidemiological model.
 #' 
+#' @param model String, type of model to be used ('SEIRD' or 'SEIR' available).
 #' @param obs Data frame with dates and observations of SEIRD counts.
 #' @param beta0 Initial value for contact rate in (0,1).
 #' @param beta0prime Initial value for 1st derivative of contact rate.
@@ -16,8 +17,9 @@
 #' @param num_initial_values Number of values over which we take the mean to initialize X.
 #' @return A list containing initialized parameters and matrices.
 #' @export
-initialization <- function(obs, beta0, beta0prime, 
-                           lambda, gamma, eta, 
+initialization <- function(model, obs, 
+                           beta0, beta0prime, 
+                           lambda, gamma, eta = 0, 
                            l, scale = 1, noise_obs,
                            noise_X, noise_U,
                            noise_wiener_X, noise_wiener_U,
@@ -46,17 +48,61 @@ initialization <- function(obs, beta0, beta0prime,
   }
   ind <- get_observation_vector(obs)
   
-  # Initialize compartment counts and their two first derivatives
-  X0 <- numeric(5)
-  X0[1] <- ifelse("S" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "S")]), pop)
-  X0[2] <- ifelse("E" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "E")]), 1)
-  X0[3] <- ifelse("I" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "I")]), 0)
-  X0[4] <- ifelse("R" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "R")]), 0)
-  X0[5] <- ifelse("D" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "D")]), 0)
-  X0 <- unlist(X0)
-  X1 <- f(X0, beta0, pop, lambda, gamma, eta) # Initial values for 1st derivatives
-  X2 <- diag(jacobian_f(X0, beta0, pop, lambda, gamma, eta)) # Initial values for 2nd derivatives
-  X <- as.vector(c(X0,X1,X2))
+  if (!model %in% c("SEIRD", "SEIR")) {
+    warning("The model should be either 'SEIRD' or 'SEIR'.")
+  }
+  
+  if (model == 'SEIRD') {
+  
+    # Initialize compartment counts and their two first derivatives
+    X0 <- numeric(5)
+    X0[1] <- ifelse("S" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "S")]), pop)
+    X0[2] <- ifelse("E" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "E")]), 1)
+    X0[3] <- ifelse("I" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "I")]), 0)
+    X0[4] <- ifelse("R" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "R")]), 0)
+    X0[5] <- ifelse("D" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "D")]), 0)
+    X0 <- unlist(X0)
+    X1 <- f(model, X0, beta0, pop, lambda, gamma, eta) # Initial values for 1st derivatives
+    X2 <- diag(jacobian_f(model, X0, beta0, pop, lambda, gamma, eta)) # Initial values for 2nd derivatives
+    X <- as.vector(c(X0,X1,X2))
+  
+    # Drift and dispersion matrices
+    F_X <-  as.matrix(sparseMatrix(i = 1:10, j = 6:15, x = 1, dims = c(15,15)))
+    L_X <-  as.matrix(sparseMatrix(i = 11:15, j = 1:5, x = 1, dims = c(15,5)))
+    
+    # Observation matrix
+    H <- as.matrix(sparseMatrix(i = 1:length(ind), j = ind, x = 1, dims = c(length(ind),17)))
+    
+    # Noise of prior
+    P_X <- matrix(noise_X, nrow = 15, ncol = 15)
+  }
+  
+  if (model == 'SEIR') {
+    
+    # Initialize compartment counts and their two first derivatives
+    X0 <- numeric(4)
+    X0[1] <- ifelse("S" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "S")]), pop)
+    X0[2] <- ifelse("E" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "E")]), 1)
+    X0[3] <- ifelse("I" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "I")]), 0)
+    X0[4] <- ifelse("R" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "R")]), 0)
+    X0 <- unlist(X0)
+    X1 <- f(model, X0, beta0, pop, lambda, gamma, eta) # Initial values for 1st derivatives
+    X2 <- diag(jacobian_f(model, X0, beta0, pop, lambda, gamma, eta)) # Initial values for 2nd derivatives
+    X <- as.vector(c(X0,X1,X2))
+    
+    # Drift and dispersion matrices
+    F_X <-  as.matrix(sparseMatrix(i = 1:8, j = 5:12, x = 1, dims = c(12,12)))
+    L_X <-  as.matrix(sparseMatrix(i = 9:12, j = 1:4, x = 1, dims = c(12,4)))
+    
+    # Observation matrix
+    H <- as.matrix(sparseMatrix(i = 1:length(ind), j = ind, x = 1, dims = c(length(ind),14)))
+    
+    # Noise of prior
+    P_X <- matrix(noise_X, nrow = 12, ncol = 12)
+    
+    # Fatality rate
+    eta <- 0
+  }
   
   # Initialize latent parameter (contact rate) and its first derivative
   U <- as.vector(c(
@@ -64,16 +110,9 @@ initialization <- function(obs, beta0, beta0prime,
     beta0prime) # Initial value for 1st derivative
   )
   
-  # Drift matrices
-  F_X <-  as.matrix(sparseMatrix(i = 1:10, j = 6:15, x = 1, dims = c(15,15)))
+  # Drift and dispersion matrices
   F_U <- matrix(c(0,-(sqrt(3)/l)^2,1,-2*sqrt(3)/l), nrow = 2, ncol = 2)
-  
-  # Dispersion matrices
-  L_X <-  as.matrix(sparseMatrix(i = 11:15, j = 1:5, x = 1, dims = c(15,5)))
   L_U <- matrix(c(0,scale), nrow = 2, ncol = 1)
-  
-  # Observation matrix
-  H <- as.matrix(sparseMatrix(i = 1:length(ind), j = ind, x = 1, dims = c(length(ind),17)))
   
   # Observation noise
   if(length(noise_obs) == 1){
@@ -82,11 +121,10 @@ initialization <- function(obs, beta0, beta0prime,
     R <- noise_obs
   }
   
-  # Noise of priors
-  P_X <- matrix(noise_X, nrow = 15, ncol = 15)
+  # Noise of prior
   P_U <- matrix(noise_U, nrow = 2, ncol = 2)
 
-  # Noise of Wiener process
+  # Noise of Wiener processes
   noise_wiener_X <- diag(noise_wiener_X, nrow = ncol(L_X), ncol = ncol(L_X))
   noise_wiener_U <- diag(noise_wiener_U, nrow = ncol(L_U), ncol = ncol(L_U))
   

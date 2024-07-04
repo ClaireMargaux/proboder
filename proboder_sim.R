@@ -3,9 +3,10 @@
 #####################################
 
 # Import functions
+source('~/Documents/GitHub/proboder/LSODA.R')
 source('~/Documents/GitHub/proboder/initialization.R')
 source('~/Documents/GitHub/proboder/inference.R')
-source('~/Documents/GitHub/proboder/saving_loading.R')
+source('~/Documents/GitHub/proboder/processing_saving_loading.R')
 source('~/Documents/GitHub/proboder/scoring.R')
 source('~/Documents/GitHub/proboder/plotting.R')
 
@@ -20,6 +21,7 @@ library(gridExtra) # for multiple plots
 library(tictoc) # for benchmarking
 library(progress) # to track progress of grid search
 library(dplyr) # for treating data
+library(lubridate) # to deal with dates
 
 # Start counting computation time
 tic("Duration of the whole workflow")
@@ -28,140 +30,119 @@ tic("Duration of the whole workflow")
 ############# DATA ##############
 #################################
 
-# Choose data to be imported
-type <- 'simulated_LSODA_sin' # set 'simulated_LSODA' for simulated data using LSODA, and 'simulated_HETTMO' for simulated data using HETTMO
-region <- ''
-daily_or_weekly <- ''
+# Model ('SEIRD' or 'SEIR')
+model <- 'SEIR'
 
-if(type == 'simulated_LSODA_sin'){
-  directory_data <- "~/Documents/GitHub/proboder/Data/LSODA/sin" # directory of data
-}else if(type == 'simulated_LSODA_log'){
-  directory_data <- "~/Documents/GitHub/proboder/Data/LSODA/log" # directory of data
-}else if(type == 'simulated_HETTMO'){
-    directory_data <- "~/Documents/GitHub/proboder/Data/HETTMO" # directory of data
+# Time grid
+steps <- 1
+max_time <- 30
+
+# Fixed parameters
+lambda <- 1/(2.6) # latency, ref value 1/(2.6)
+gamma <- 1/(2.6) # recovery, ref value 1/(2.6)
+eta <- 0 # fatality, ref value 0.024*(1/15), set to 0 if model = 'SEIR'
+
+# Beta function
+beta <- function(t){2*cos(t/30)-1}
+
+# Starting compartment counts
+if (model == 'SEIRD') {
+  xstart <- c(S = 499980, E = 5, I = 5, R = 5, D = 0)
+} else if (model == 'SEIR') {
+  xstart <- c(S = 499985, E = 5, I = 5, R = 5)
 }
+pop <- sum(xstart)
 
-# Import data
-data <- load_data(type,region,daily_or_weekly,directory_data)
-obs <- as.data.frame(data$obs)
-obs_with_noise <- data$obs_with_noise # only with LSODA
-params <- data$params
-real_beta <- data$real_beta
+# If noisy observation wished
+noise <- 1 # noise to add on the data, set to 0 for data without noise
+seed <- 5 # any integer, for reproducibility (set NA for no seed)
+
+# Data simulation
+sim <- simulate_data_LSODA(
+  model = model,
+  noise = noise,
+  seed = seed,
+  steps = steps,
+  max_time = max_time,
+  lambda = lambda, gamma = gamma, eta = eta,
+  pop = pop, 
+  beta = beta,
+  xstart = xstart)
+
+# Get simulated data sets
+obs <- sim$obs
+df_beta <- sim$df_beta
+if (noise > 0) {
+  obs_with_noise <- sim$obs_with_noise
+}
 
 # Sanity check.
 head(obs)
+
+# Visualization
+plots <- plotting_simulated_data_lsoda(
+  model = model,
+  sim = sim,
+  latency_rate = lambda,
+  recovery_rate = gamma,
+  fatality_rate = eta,
+  log = TRUE)
+
+simulated_compartments <- plots$simulated_compartments
+simulated_beta <- plots$simulated_beta
+
+print(simulated_compartments)
+print(simulated_beta)
 
 #####################################
 ########## INITIALIZATION ###########
 #####################################
 
-if(exists("best_params")){
-  
-  initial_params <-
-    initialization(obs_with_noise, beta0 = real_beta[1], beta0prime = best_params$beta0prime,
-                   lambda = params$lambda, gamma = params$gamma, eta = params$eta,
-                   l = best_params$l, scale = 1, noise_obs = params$obs_noise,
-                   noise_X = sqrt(params$obs_noise), noise_U = 0.01,
-                   noise_wiener_X = best_params$noise_wiener_X, noise_wiener_U = best_params$noise_wiener_U,
-                   pop = params$pop)
-  
-}else if(type == 'simulated_LSODA_sin'){
-  
-  initial_params <-
-    initialization(obs_with_noise, beta0 = real_beta[1], beta0prime = 0,
-                   lambda = params$lambda, gamma = params$gamma, eta = params$eta,
-                   l = 9.7, scale = 1, noise_obs = params$obs_noise,
-                   noise_X = sqrt(params$obs_noise), noise_U = 0.01,
-                   noise_wiener_X = 50, noise_wiener_U = 0.01,
-                   pop = params$pop)
-  
-  # best_params
-  #   l noise_wiener_X noise_wiener_U beta0prime         SPE     NLPD      CRPS
-  # 9.7             50           0.01        0.3 0.004045279 1.382473 0.3722231
-  
-}else if(type == 'simulated_LSODA_log'){
-  
-  initial_params <-
-    initialization(obs_with_noise, beta0 = real_beta[1], beta0prime = 0.5,
-                   lambda = params$lambda, gamma = params$gamma, eta = params$eta,
-                   l = 9.55, scale = 1, noise_obs = params$obs_noise,
-                   noise_X = sqrt(params$obs_noise), noise_U = 0.01,
-                   noise_wiener_X = 25, noise_wiener_U = 0.01,
-                   pop = params$pop)
-  
-  # best_params
-  #    l noise_wiener_X noise_wiener_U beta0prime         SPE     NLPD      CRPS
-  # 9.55             25           0.01        0.5 0.004370289 1.381363 0.3718669
-  
-}
+l <- 9.7 # lengthscale
 
-# If using data simulated with HETTMO:
-# initial_params <-
-#   initialization(obs, beta0 = 1, beta0prime = 0,
-#                  lambda = 7/2.6, gamma = 7/2.6, eta = 0,
-#                  l = 8, scale = 1, noise_obs = 10,
-#                  noise_X = 1, noise_U = 0.1,
-#                  noise_wiener_X = 1, noise_wiener_U = 0.1,
-#                  pop = 1e+05)
+initial_params <-
+  initialization(model = model,
+                 obs = obs, # choose if obs or obs_with_noise
+                 beta0 = df_beta$beta[1], 
+                 beta0prime = 0,
+                 lambda = lambda, 
+                 gamma = gamma, 
+                 eta = eta,
+                 l = l, 
+                 scale = 1, 
+                 noise_obs = noise,
+                 noise_X = sqrt(noise), 
+                 noise_U = 0.01,
+                 noise_wiener_X = 50, 
+                 noise_wiener_U = 0.01,
+                 pop = pop)
+
+# Generate time grids for inference
+grids <- generate_grid(obs, num_points_between = 0)
 
 #####################################
 ############# INFERENCE #############
 #####################################
 
-grids <- generate_grid(obs, num_points_between = 0)
-
 # Run inference
-inference_results <- inference(grids, obs, initial_params)
+inference_results <- inference(model = model, 
+                               grids = grids, 
+                               obs = obs, 
+                               initial_params = initial_params)
 
-X_values <- inference_results$X_values
-U_values <- inference_results$U_values
-P_X_values <- inference_results$P_X_values
-P_U_values <- inference_results$P_U_values
-
-# ------------
-# Save results
-# ------------
-
-# Specify directory for results
-if(type == 'simulated_LSODA_sin'){
-  directory_res <- "~/Documents/GitHub/proboder/Results/sin" # directory of data
-}else if(type == 'simulated_LSODA_log'){
-  directory_res <- "~/Documents/GitHub/proboder/Results/log" # directory of data
-}else if(type == 'simulated_HETTMO'){
-  directory_res <- "~/Documents/GitHub/proboder/Results/hettmo" # directory of data
-}
-
-# Save results to the specified directory
-save_results_as_Rdata(X_values, U_values, P_X_values, P_U_values, directory_res)
+# Process data for visualization
+processed_data <- process_data(inference_results,grids)
+U_plot <- processed_data$U_plot
+X_plot <- processed_data$X_plot
 
 ###############################
 ########### SCORING ###########
 ###############################
 
-# ---------------------
-# Extract relevant data
-# ---------------------
-
-# Load and process data from the specified directory
-processed_data <- load_and_process_data(directory_res,time_grid)
-U_plot <- processed_data$U_plot
-X_plot <- processed_data$X_plot
-
-# Save processed data to the specified directory
-save_processed_data(U_plot, X_plot, directory_res)
-
-# Create data frame for real beta values
-real_beta_df <- data.frame(time = data_grid, real_beta = real_beta)
-colnames(real_beta_df) <- c('t','beta')
-
-# --------
-# Scoring
-# --------
-
 # Compute the different scores
-SPE <- mean(squared_prediction_error(U_plot,real_beta_df))
-NLPD <- mean(negative_log_predictive_density(U_plot,real_beta_df))
-CRPS <- mean(continuous_ranked_probability_score(U_plot,real_beta_df))
+SPE <- mean(squared_prediction_error(U_plot,df_beta))
+NLPD <- mean(negative_log_predictive_density(U_plot,df_beta))
+CRPS <- mean(continuous_ranked_probability_score(U_plot,df_beta))
 
 # Create a data frame with the results
 results <- data.frame(
@@ -169,20 +150,9 @@ results <- data.frame(
   Value = c(SPE, NLPD, CRPS)
 )
 
-# Create nice table using knitr and kableExtra
+# Generate nice table using knitr and kableExtra
 table <- kable(results, align = "c", caption = "Scoring Methods Results")
 (styled_table <- kableExtra::kable_styling(table, bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE))
-
-# ------
-# Saving
-# ------
-
-# Save the table as a HTML file
-file_path_html <- file.path(directory_res, "scoring_results.html")
-save_kable(styled_table, file = file_path_html, type = "html")
-
-# To store the table as a png file, use the manual export option from the viewer.
-# Save in size 400x200.
 
 #####################################
 ########### VISUALIZATION ###########
@@ -192,53 +162,57 @@ save_kable(styled_table, file = file_path_html, type = "html")
 # Plotting
 # --------
 
-# # Plot simulated compartment counts and noisy simulated observations.
-# file_path <- file.path(directory_res, "sim-counts.pdf")
-# pdf(file_path, width = 8, height = 6)
-# plot_sim(obs, obs_with_noise)
-# dev.off()
-# plot_sim(obs, obs_with_noise)
-# 
-# # Plot compartment counts inferred from simulated data
-# file_path <- file.path(directory_res, "SEIRD-counts.pdf")
-# pdf(file_path, width = 10, height = 6)
-# plot_data_sim(obs,obs_with_noise,X_plot)
-# dev.off()
-# plot_data_sim(obs,obs_with_noise,X_plot)
-# 
-# # Plot compartment counts separately
-# plots <- plot_compartment(obs,obs_with_noise,X_plot)
-# for (i in 1:5) {
-#   file_path <- file.path(directory_res, paste0("SEIRD-counts-sep-with-CI-", i, ".pdf"))
-#   pdf(file_path, width = 8, height = 6)
-#   plot <- plots[[i]]
-#   print(plot)
-#   dev.off()
-# }
-# for (i in 1:5) {
-#   plot <- plots[[i]]
-#   print(plot)
-# }
+# Plot compartment counts inferred from simulated data
+compartments <- plot_compartments(model = model,
+                                  obs = obs, 
+                                  obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+                                  X_plot = X_plot)
 
-# Get some fixed values to plot together with contact rate
-lambda <- round(initial_params$lambda, 4)
-gamma <- round(initial_params$gamma, 4)
-eta <- initial_params$eta
-l <- initial_params$l
+print(compartments)
 
-# Plot simulated contact rate
-file_path <- file.path(directory_res, "sim-contact-rate.pdf")
-pdf(file_path, width = 8, height = 6)
-plot_sim_contact_rate(real_beta_df, lambda, gamma, eta)
-dev.off()
-plot_sim_contact_rate(real_beta_df, lambda, gamma, eta)
+# Plot compartment counts separately
+plots_sep <- plot_compartments_separately(model = model,
+                                          obs = obs,
+                                          obs_with_noise = NULL, # if available, otherwise set NULL
+                                          X_plot = X_plot)
+for (i in 1:nchar(model)) {
+  plot_name <- paste0('plot_', i)
+  assign(plot_name, plots_sep[[i]])
+  print(get(plot_name))
+}
 
-# Plot contact rate inferred from simulated data
-file_path <- file.path(directory_res, "inf-contact-rate-with-CI.pdf")
-pdf(file_path, width = 10, height = 6)
-plot_contact_rate_with_CI(U_plot, real_beta_df, lambda, gamma, eta, l)
-dev.off()
-plot_contact_rate_with_CI(U_plot, real_beta_df, lambda, gamma, eta, l)
+# Plot contact rate with 95% confidence interval
+contact_rate_with_CI <- plot_contact_rate_with_CI(U_plot = U_plot, 
+                                                  df_beta = df_beta, # if available, otherwise set NULL
+                                                  latency_rate = lambda, 
+                                                  recovery_rate = gamma, 
+                                                  fatality_rate = eta, 
+                                                  lengthscale = l)
+
+print(contact_rate_with_CI)
+
+# ------
+# Saving
+# ------
+
+if (FALSE) {
+  
+  directory_save <- '~/Documents/GitHub/proboder/Results/'
+  save_processed_data(# Data
+    inference_results = inference_results, 
+    processed_data = processed_data, 
+    directory = directory_save,
+    simulated_compartments = simulated_compartments, 
+    simulated_beta = simulated_beta,
+    compartments = compartments,
+    contact_rate_with_CI = contact_rate_with_CI,
+    plots_sep = plots_sep,
+    styled_table = styled_table)
+  
+}
+
+# To store the table as a png file, use the manual export option from the viewer.
+# Save in size 400x200.
 
 # ------------
 # Benchmarking
