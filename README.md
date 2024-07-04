@@ -25,21 +25,21 @@ Installing RStudio: https://posit.co/products/open-source/rstudio/
 
 ## Usage
 
-Infer the contact rate from public health data using a SIRD model. Inference through a state-space model using Gauss-Markov priors and (extended) Kalman filtering for the prediction and update steps.
+Infer the contact rate from public health data using a SEIR(D) model. Inference through a state-space model using Gauss-Markov priors and (extended) Kalman filtering for the prediction and update steps.
 
 ## Data
 
 Data from the Covid-19 Switzerland Dashboard of the Federal Office of Public Health (FOPH):
 - COVID19Cases_geoRegion.csv: Daily recording schedules by geographical region for cases, from 24 February 2020 to 1 January 2023.
-- COVID19Death_geoRegion.csv: Daily recording timelines by geographical region for deaths, from 24 February 2020 to 1 January 2023.
+- COVID19Death_geoRegion_w.csv: Weekly recording timelines by geographical region for cases, from 24 February 2020 to 1 January 2023.
  
 ## Algorithm
 
-Explanation of the algorithm used in the project, including any mathematical formulations, assumptions, and implementations.
+...
 
 ## Parameters
 
-Description of any parameters used in the algorithm, including their meanings and default values.
+...
 
 ## Contributing
 
