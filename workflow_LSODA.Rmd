@@ -299,7 +299,7 @@ if (TRUE) { # set TRUE to perform random search
 ```{r}
 # If wished, the processed data can be stored
 directory_save <- '~/Documents/GitHub/proboder/Results/'
-if (TRUE) { # Set TRUE to save
+if (FALSE) { # Set TRUE to save
   save_processed_data(inference_results = inference_results, 
                       processed_data = processed_data, 
                       directory = directory_save,
