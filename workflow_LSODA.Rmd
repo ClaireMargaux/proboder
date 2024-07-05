@@ -2,7 +2,10 @@
 title: "Workflow ProbODER LSODA"
 author: "Claire Descombes"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+  html_document:
+    css: styles.css
+    self_contained: false
 ---
 
 ```{r setup, include=FALSE}
@@ -10,49 +13,45 @@ knitr::opts_chunk$set(echo = TRUE, fig.width=8, fig.height=6)
 ```
 
 ```{r, echo=FALSE, include=FALSE}
-# Import functions
-source('~/Documents/GitHub/proboder/LSODA.R')
-source('~/Documents/GitHub/proboder/initialization.R')
-source('~/Documents/GitHub/proboder/inference.R')
-source('~/Documents/GitHub/proboder/processing_saving_loading.R')
-source('~/Documents/GitHub/proboder/scoring.R')
-source('~/Documents/GitHub/proboder/plotting.R')
+# Set source directory
+source_directory <- '~/Documents/GitHub/proboder/Functions/'
 
-# Necessary packages
-library(Matrix) # for sparseMatrix() and expm()
-library(numDeriv) # for jacobian()
-library(matrixcalc) # for svd.inverse()
-library(knitr) # for nice tables
-library(kableExtra) # for storing nice tables
-library(ggplot2) # for ggplot()
-library(gridExtra) # for multiple plots
-library(tictoc) # for benchmarking
-library(progress) # to track progress of grid search
-library(dplyr) # for treating data
-library(lubridate) # to deal with dates
+# Source necessary functions
+source(file.path(source_directory, 'LSODA.R'))
+source(file.path(source_directory, 'initialization.R'))
+source(file.path(source_directory, 'inference.R'))
+source(file.path(source_directory, 'processing_saving_loading.R'))
+source(file.path(source_directory, 'scoring.R'))
+source(file.path(source_directory, 'plotting.R'))
+source(file.path(source_directory, 'random_search.R'))
+
+# Load or install necessary packages
+load_required_packages()
 ```
 
 ## Simulation A
+
+#### Simulate data
 
 ```{r, fig.width=8, fig.height=6}
 # --------------
 # Initialization
 # --------------
 
-# Model ('SEIRD' or 'SEIR')
-model <- 'SEIR'
+model <- 'SEIR' # model to be simulated ('SEIRD' or 'SEIR' available)
 
-# Time grid
-steps <- 1
-max_time <- 30
+steps <- 1 # steps for time grid
+max_time <- 30 # max time for time grid
 
-# Fixed parameters
-lambda <- 1/(2.6) # latency, ref value 1/(2.6)
-gamma <- 1/(2.6) # recovery, ref value 1/(2.6)
-eta <- 0 # fatality, ref value 0.024*(1/15), set to 0 if model = 'SEIR'
+lambda <- 1/(2.6) # latency rate, ref value 1/(2.6)
+gamma <- 1/(2.6) # recovery rate, ref value 1/(2.6)
+if (model == 'SEIRD') {
+  eta <- 0.024*(1/15) # fatality rate, ref value 0.024*(1/15)
+} else if (model == 'SEIR') {
+  eta <- 0
+}
 
-# Beta function
-beta <- function(t){2*cos(t/30)-1}
+beta <- function(t){2*cos(t/30)-1} # funtion for contact rate
 
 # Starting compartment counts
 if (model == 'SEIRD') {
@@ -62,8 +61,7 @@ if (model == 'SEIRD') {
 }
 pop <- sum(xstart)
 
-# If noisy observation wished
-noise <- 1 # noise to add on the data, set to 0 for data without noise
+noise <- 10 # noise to add on the data, set > 0 to avoid numerical instabilities
 seed <- 5 # any integer, for reproducibility (set NA for no seed)
 
 # ------------------------
@@ -98,35 +96,30 @@ plots <- plotting_simulated_data_lsoda(
   fatality_rate = eta,
   log = TRUE)
 
-simulated_compartments <- plots$simulated_compartments
-simulated_beta <- plots$simulated_beta
-
-print(simulated_compartments)
-print(simulated_beta)
+(simulated_compartments <- plots$simulated_compartments)
+(simulated_beta <- plots$simulated_beta)
 ```
 
+#### Perform inference
+
 ```{r, fig.width=8, fig.height=6}
-# ---------
-# Inference
-# ---------
 
-l <- 9.7 # lengthscale
+l <- 9 # lengthscale
+noise_wiener_X <- 50 # noise of the Wiener process associated with X
+noise_wiener_U <- 0.01 # noise of the Wiener process associated with U
+beta0 = df_beta$beta[1] # starting contact rate
+beta0prime <- 0 # starting 1st derivative of contact rate
+obs_to_use <- obs_with_noise # choose if obs or obs_with_noise
 
+# Initialize
 initial_params <-
-    initialization(model = model,
-                   obs = obs, # choose if obs or obs_with_noise
-                   beta0 = df_beta$beta[1], 
-                   beta0prime = 0,
-                   lambda = lambda, 
-                   gamma = gamma, 
-                   eta = eta,
-                   l = l, 
-                   scale = 1, 
-                   noise_obs = noise,
-                   noise_X = sqrt(noise), 
-                   noise_U = 0.01,
-                   noise_wiener_X = 50, 
-                   noise_wiener_U = 0.01,
+    initialization(model = model, obs = obs_to_use,
+                   beta0 = beta0, beta0prime = beta0prime,
+                   lambda = lambda, gamma = gamma, eta = eta,
+                   l = l, scale = 1, noise_obs = noise,
+                   noise_X = sqrt(noise), noise_U = 0.01,
+                   noise_wiener_X = noise_wiener_X, 
+                   noise_wiener_U = noise_wiener_U,
                    pop = pop)
 
 # Generate time grids for inference
@@ -136,6 +129,7 @@ grids <- generate_grid(obs, num_points_between = 0)
 inference_results <- inference(model = model, 
                                grids = grids, 
                                obs = obs, 
+                               jit = TRUE,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -143,54 +137,169 @@ processed_data <- process_data(inference_results,grids)
 U_plot <- processed_data$U_plot
 X_plot <- processed_data$X_plot
 
-# Compute the different scores
-SPE <- mean(squared_prediction_error(U_plot,df_beta))
-NLPD <- mean(negative_log_predictive_density(U_plot,df_beta))
-CRPS <- mean(continuous_ranked_probability_score(U_plot,df_beta))
-
-# Create a data frame with the results
-results <- data.frame(
-  Method = c("Mean Squared Prediction Error", "Mean Negative Log Predictive Density", "Mean Continuous Ranked Probability Score"),
-  Value = c(SPE, NLPD, CRPS)
-)
-
-# Generate nice table using knitr and kableExtra
-table <- kable(results, align = "c", caption = "Scoring Methods Results")
-styled_table <- kableExtra::kable_styling(table, bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
-print(styled_table)
+# Compute and display scores
+(styled_table <- 
+    compute_scores_and_table(U_plot = U_plot, df_beta = df_beta))
 
 # Plot compartment counts inferred from simulated data
-compartments <- plot_compartments(model = model,
-                                  obs = obs, 
-                                  obs_with_noise = obs_with_noise, # if available, otherwise set NULL
-                                  X_plot = X_plot)
+(compartments <- 
+  plot_compartments(model = model,
+     obs = obs, 
+     obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+     X_plot = X_plot))
 
-print(compartments)
+# Plot compartment counts separately
+plots_sep <- 
+  plot_compartments_separately(
+    model = model,
+    obs = obs,
+    obs_with_noise = NULL, # if available, otherwise set NULL
+    X_plot = X_plot)
+
+num_plots <- length(plots_sep)
+invisible(grid_plots_sep <- grid.arrange(
+    grobs = plots_sep,
+    ncol = 2,
+    nrow = ceiling(num_plots/2)))
+
+# Plot contact rate with 95% confidence interval
+(contact_rate_with_CI <- plot_contact_rate_with_CI(U_plot = U_plot, 
+                          df_beta = df_beta, # if available, otherwise set NULL
+                          latency_rate = lambda, 
+                          recovery_rate = gamma, 
+                          fatality_rate = eta, 
+                          lengthscale = l))
+```
+
+## Simulation B
+
+Same data set as simulation A, parameters given by random search.
+
+#### Perform inference
+
+```{r, fig.width=8, fig.height=6}
+
+l <- 6.15 # lengthscale
+noise_wiener_X <- 20 # noise of the Wiener process associated with X
+noise_wiener_U <- 0.055 # noise of the Wiener process associated with U
+beta0 = df_beta$beta[1] # starting contact rate
+beta0prime <- 0 # starting 1st derivative of contact rate
+obs_to_use <- obs_with_noise # choose if obs or obs_with_noise
+
+# Initialize
+initial_params <-
+    initialization(model = model, obs = obs_to_use,
+                   beta0 = beta0, beta0prime = beta0prime,
+                   lambda = lambda, gamma = gamma, eta = eta,
+                   l = l, scale = 1, noise_obs = noise,
+                   noise_X = sqrt(noise), noise_U = 0.01,
+                   noise_wiener_X = noise_wiener_X, 
+                   noise_wiener_U = noise_wiener_U,
+                   pop = pop)
+
+# Generate time grids for inference
+grids <- generate_grid(obs, num_points_between = 0)
+
+# Run inference
+inference_results <- inference(model = model, 
+                               grids = grids, 
+                               obs = obs, 
+                               jit = TRUE,
+                               initial_params = initial_params)
+
+# Process data for scoring and visualization
+processed_data <- process_data(inference_results,grids)
+U_plot <- processed_data$U_plot
+X_plot <- processed_data$X_plot
+
+# Compute and display scores
+(styled_table <- 
+    compute_scores_and_table(U_plot = U_plot, df_beta = df_beta))
+
+# Plot compartment counts inferred from simulated data
+(compartments <- 
+  plot_compartments(model = model,
+     obs = obs, 
+     obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+     X_plot = X_plot))
 
 # Plot compartment counts separately
 plots_sep <- plot_compartments_separately(model = model,
                                           obs = obs,
                                           obs_with_noise = NULL, # if available, otherwise set NULL
                                           X_plot = X_plot)
-for (i in 1:nchar(model)) {
-  plot_name <- paste0('plot_', i)
-  assign(plot_name, plots_sep[[i]])
-  print(get(plot_name), width = 8, height = 6)
-}
+
+num_plots <- length(plots_sep)
+invisible(grid_plots_sep <- grid.arrange(
+    grobs = plots_sep,
+    ncol = 2,
+    nrow = ceiling(num_plots/2)))
 
 # Plot contact rate with 95% confidence interval
-contact_rate_with_CI <- plot_contact_rate_with_CI(U_plot = U_plot, 
+(contact_rate_with_CI <- plot_contact_rate_with_CI(U_plot = U_plot, 
                           df_beta = df_beta, # if available, otherwise set NULL
                           latency_rate = lambda, 
                           recovery_rate = gamma, 
                           fatality_rate = eta, 
-                          lengthscale = l)
+                          lengthscale = l))
+```
 
-print(contact_rate_with_CI)
+## Simulation X
 
+More days
+
+## Random search
+
+#### Perform random search 
+
+```{r, fig.width=8, fig.height=6}
+# If wished, a random search on a set of parameters can be performed
+
+if (TRUE) { # set TRUE to perform random search
+  seed <- 5
+  num_param_sets <- 1000 # Number of parameter sets to sample.
+  seq_l <- seq(6, 9, by = 0.05)
+  seq_wiener_X <- seq(20, 1000, by = 25)
+  seq_wiener_U <- seq(0.005, 1, by = 0.005)
+  seq_beta0prime <- c(-0.5, 0, 0.5)
+  
+  results_summary <- 
+    run_random_search(
+      model = model, obs_to_use = obs_to_use, df_beta = df_beta, 
+      noise = noise, lambda = lambda, gamma = gamma, eta = eta, pop = pop, 
+      beta0 = beta0, jit = TRUE,
+      seed = seed, num_param_sets = num_param_sets, 
+      seq_l = seq_l, 
+      seq_wiener_X = seq_wiener_X, 
+      seq_wiener_U = seq_wiener_U, 
+      seq_beta0prime = seq_beta0prime
+    )
+
+  plots_scores <- plot_scores(results_summary)
+  all_plots <- c(plots_scores$mean_plots, plots_scores$median_plots)
+  invisible(grid_of_plots <- grid.arrange(
+    grobs = all_plots,
+    ncol = 2, 
+    nrow = 4))
+  
+  # If desired, save the plot using ggsave
+  # output_dir <- '~/Documents/GitHub/proboder/Results/2024-07-05_16-30-05-sim-A/'
+  # ggsave(filename = file.path(output_dir, 'grid_search.png'), 
+  #        plot = grid_of_plots,
+  #        bg = "white",
+  #        width = 8,
+  #        height = 6)
+  
+  (best_params <- find_best_hyperparameters(results_summary))
+}
+```
+
+## Store data
+
+```{r}
 # If wished, the processed data can be stored
 directory_save <- '~/Documents/GitHub/proboder/Results/'
-if (FALSE) { # Set TRUE to save
+if (TRUE) { # Set TRUE to save
   save_processed_data(inference_results = inference_results, 
                       processed_data = processed_data, 
                       directory = directory_save,
@@ -198,18 +307,10 @@ if (FALSE) { # Set TRUE to save
                       simulated_beta = simulated_beta,
                       compartments = compartments,
                       contact_rate_with_CI = contact_rate_with_CI,
-                      plots_sep = plots_sep,
+                      grid_plots_sep = grid_plots_sep,
                       styled_table = styled_table)
 }
 
 # To store the table as a png file, use the manual export option from the viewer.
 # Save in size 400x200.
 ```
-
-## Simulation B
-
-More days
-
-## Simulation C
-
-No noise
