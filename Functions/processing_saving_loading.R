@@ -35,8 +35,6 @@ process_data <- function(inference_results, grids) {
   # Generate values for error area
   
   calculate_y_bounds <- function(X, P_X, sigma) {
-    # Replace negative values in P_X with 0
-    P_X[P_X < 0] <- 0
     
     # Calculate ymin and ymax
     ymin <- mapply(function(mu, sigma) (qnorm(0.025, mean = mu, sd = sqrt(sigma))), X, P_X)
@@ -77,7 +75,7 @@ process_data <- function(inference_results, grids) {
   ymax_U <- mapply(function(mu, sigma) sigmoid(qnorm(0.975, mean = mu, sd = sqrt(sigma))), U_value, P_U)
   
   # Create a data frame for the plot of the contact rate
-  U_plot <- data.frame(t = time_grid, U_scaled = U_scaled, ymin = ymin_U, ymax = ymax_U, P_U_scaled = P_U_scaled, row.names = NULL)
+  U_plot <- data.frame(t = time_grid, U_scaled = U_scaled, ymin = ymin_U, ymax = ymax_U, P_U_scaled = P_U_scaled, U_not_scaled = U_value, P_U_not_scaled = P_U, row.names = NULL)
   
   # Create data frame for the plot of the compartments
   X_plot <- data.frame(X_val = X_val, minmax = minmax, row.names = NULL)
@@ -136,6 +134,7 @@ create_timestamped_directory <- function(base_directory) {
 #' @param processed_data List of data frames containing the processed data for plotting the contact rate.
 #' @param simulated_compartments ggplot object, plot of the simulated compartment counts.
 #' @param simulated_beta ggplot object, plot of the simulated contact rate.
+#' @param real_compartments ggplot object, plot of the observed compartment counts.
 #' @param compartments ggplot object, plot of the inferred compartment counts.
 #' @param contact_rate_with_CI ggplot object, plot of the inferred contact rate with 95% confidence interval.
 #' @param grid_plots_sep Grid of ggplot objects arranged using grid.arrange, plots of the inferred compartment counts separately.
@@ -151,6 +150,7 @@ save_processed_data <- function(directory,
                                 # Plots
                                 simulated_compartments = NULL,
                                 simulated_beta = NULL,
+                                real_compartments = NULL,
                                 compartments = NULL,
                                 contact_rate_with_CI = NULL,
                                 grid_plots_sep = NULL,
@@ -192,6 +192,13 @@ save_processed_data <- function(directory,
            width = plot_width, 
            height = plot_height)
   }
+  if (!is.null(real_compartments)) {
+    ggsave(filename = file.path(new_directory, "real_compartments.png"), 
+           plot = real_compartments, 
+           bg = "white",
+           width = plot_width, 
+           height = plot_height)
+  }
   if (!is.null(compartments)) {
     ggsave(filename = file.path(new_directory, "compartments.png"), 
            plot = compartments, 
@@ -226,7 +233,7 @@ save_processed_data <- function(directory,
 #' @param region Character, region for which to load the data ('BE' or 'GE').
 #' @param daily_or_weekly Character, frequency of the data ('daily' or 'weekly').
 #' @param augmented Boolean, TRUE if augmented data are wished.
-#' @param directory Character, directory path where the data is stored.
+#' @param directory_data Character, directory path where the data is stored.
 #'
 #' @return A list containing the loaded data including observations, population, and real beta (if available).
 #'
@@ -234,7 +241,7 @@ save_processed_data <- function(directory,
 #' load_data("GE", "weekly", "/path/to/data/directory/real")
 #'
 #' @export
-load_data <- function(region, daily_or_weekly, augmented = FALSE, directory) {
+load_data <- function(region, daily_or_weekly, augmented = FALSE, directory_data) {
   # Check if region is valid
   if (!(region %in% c('BE', 'GE', ''))) {
     stop("Error: Invalid region. Region must be 'BE' or 'GE'.")
@@ -248,20 +255,20 @@ load_data <- function(region, daily_or_weekly, augmented = FALSE, directory) {
   if (augmented == FALSE) {
     region_filename <- paste0("real_data_", region, "_", daily_or_weekly, ".Rdata")
     population_filename <- paste0("real_pop_", region, "_", daily_or_weekly, ".Rds")
-    load(file.path(directory, region_filename))
+    load(file.path(directory_data, region_filename))
     obs <- observations
-    population <- readRDS(file.path(directory, population_filename))
-    return <- list(obs = obs, population = population)
+    population <- readRDS(file.path(directory_data, population_filename))
+    res <- list(obs = obs, population = population)
   }
   else if (augmented == TRUE) {
     region_filename <- paste0("real_data_augmented_", region, "_", daily_or_weekly, ".Rdata")
     population_filename <- paste0("real_pop_augmented_", region, "_", daily_or_weekly, ".Rds")
-    load(file.path(directory, region_filename))
+    load(file.path(directory_data, region_filename))
     obs <- compartments
-    population <- readRDS(file.path(directory, population_filename))
-    return <- list(obs = obs, population = population)
+    population <- readRDS(file.path(directory_data, population_filename))
+    res <- list(obs = obs, population = population)
   }
   
   # Return loaded data
-  return(return)
+  return(res)
 }

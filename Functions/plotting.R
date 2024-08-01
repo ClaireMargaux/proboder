@@ -1,14 +1,14 @@
-#' Plot inferred contact rate.
+#' Plot inferred transmission rate.
 #'
-#' This function generates a plot of the estimated contact rate along with its 95%-confidence interval.
+#' This function generates a plot of the estimated transmission rate along with its 95%-confidence interval.
 #'
-#' @param U_plot Data frame containing the estimated contact rate values.
-#' @param real_beta_df Data frame containing the real contact rate values (optional).
+#' @param U_plot Data frame containing the estimated transmission rate values.
+#' @param real_beta_df Data frame containing the real transmission rate values (optional).
 #' @param latency_rate Numeric value indicating the latency rate.
 #' @param recovery_rate Numeric value indicating the recovery rate.
 #' @param fatality_rate Numeric value indicating the fatality rate (optional).
 #' @param lengthscale Numeric value indicating the length scale.
-#' @return A ggplot object displaying the contact rate plot.
+#' @return A ggplot object displaying the transmission rate plot.
 #' @export
 plot_contact_rate_with_CI <- function(U_plot, 
                                       df_beta = NULL, 
@@ -20,12 +20,12 @@ plot_contact_rate_with_CI <- function(U_plot,
     
     ggplot() +
       geom_ribbon(data = U_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
-      geom_line(data = df_beta, aes(x = t, y = beta, color = "Simulated contact rate"), linetype = "dashed") +
-      geom_line(data = U_plot, aes(x = t, y = U_scaled, color = "Inferred contact rate"), linewidth = 1) +
-      labs(x = "Time", y = "Contact rate", title = "Contact rate with 95%-confidence interval",
+      geom_line(data = df_beta, aes(x = t, y = beta, color = "Simulated transmission rate"), linetype = "dashed") +
+      geom_line(data = U_plot, aes(x = t, y = U_scaled, color = "Inferred transmission rate"), linewidth = 1) +
+      labs(x = "Time", y = "Transmission rate", title = "Transmission rate with 95%-confidence interval",
            color = "Legend") +  
-      scale_color_manual(values = c("Inferred contact rate" = "#009E73", "Simulated contact rate" = "#E69F00"),
-                         labels = c("Inferred contact rate", "Simulated contact rate"), name = "Lines") + 
+      scale_color_manual(values = c("Inferred transmission rate" = "#009E73", "Simulated transmission rate" = "#E69F00"),
+                         labels = c("Inferred transmission rate", "Simulated transmission rate"), name = "Lines") + 
       scale_fill_manual(values = c("Error Area" = "#66FFCC"),
                         labels = "95%-confidence interval", name = "Ribbon") +
       theme_minimal() +
@@ -41,11 +41,11 @@ plot_contact_rate_with_CI <- function(U_plot,
     
     ggplot() +
       geom_ribbon(data = U_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
-      geom_line(data = U_plot, aes(x = t, y = U_scaled, color = "Inferred contact rate"), linewidth = 1) +
-      labs(x = "Time", y = "Contact rate", title = "Contact rate with 95%-confidence interval",
+      geom_line(data = U_plot, aes(x = t, y = U_scaled, color = "Inferred transmission rate"), linewidth = 1) +
+      labs(x = "Time", y = "Transmission rate", title = "Transmission rate with 95%-confidence interval",
            color = "Legend") +  
-      scale_color_manual(values = c("Inferred contact rate" = "#009E73"),
-                         labels = c("Inferred contact rate"), name = "Lines") + 
+      scale_color_manual(values = c("Inferred transmission rate" = "#009E73"),
+                         labels = c("Inferred transmission rate"), name = "Lines") + 
       scale_fill_manual(values = c("Error Area" = "#66FFCC"),
                         labels = "95%-confidence interval", name = "Ribbon") +
       theme_minimal() +
@@ -76,20 +76,11 @@ plot_compartments <- function(model,
   
   plot_title <- "Compartments counts"
   
-  cols_SEIRD <- c("S" = "#E69F00", 
-                  "E" = "#56B4E9",
-                  "I" = "#009E73", 
-                  "R" = "#F0E442",
-                  "D" = "#0072B2")
+  cols_SEIRD <- c(S = "#E69F00", E = "#56B4E9", I = "#009E73", R = "#F0E442", D = "#0072B2")
+  labels_SEIRD <- c(S = "Susceptible", E = "Exposed", I = "Infected", R = "Recovered", D = "Deceased")
   
-  cols_SEIR <- c("S" = "#E69F00", 
-                 "E" = "#56B4E9",
-                 "I" = "#009E73", 
-                 "R" = "#F0E442")
-  
-  labels_SEIRD <- c("S","E","I","R","D")
-  
-  labels_SEIR <- c("S","E","I","R")
+  cols_SEIR <- c(S = "#E69F00", E = "#56B4E9", I = "#009E73", R = "#F0E442")
+  labels_SEIR <- c(S = "Susceptible", E = "Exposed", I = "Infected", R = "Recovered")
 
   obs <- if (model == 'SEIRD') {
     obs %>%
@@ -286,16 +277,9 @@ plot_compartments <- function(model,
 #' @export
 plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_plot) {
   
-  cols_SEIRD <- c("S" = "#E69F00", 
-                  "E" = "#56B4E9",
-                  "I" = "#009E73", 
-                  "R" = "#F0E442",
-                  "D" = "#0072B2")
-  
-  cols_SEIR <- c("S" = "#E69F00", 
-                 "E" = "#56B4E9",
-                 "I" = "#009E73", 
-                 "R" = "#F0E442")
+  cols_SEIRD <- c(S = "#E69F00", E = "#56B4E9", I = "#009E73", R = "#F0E442", D = "#0072B2")
+
+  cols_SEIR <- c(S = "#E69F00", E = "#56B4E9", I = "#009E73", R = "#F0E442")
   
   if (!is.null(obs_with_noise)) { # obs_with_noise available
     
@@ -307,7 +291,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
       theme_minimal() +
       ylab("Counts") +
       xlab("Time") + 
-      ggtitle("Detail of S") +
+      ggtitle("Detail of Susceptible") +
       scale_color_manual(values = cols_SEIRD,
                          name = "Compartment") +
       scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
@@ -327,7 +311,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
       theme_minimal() +
       ylab("Counts") +
       xlab("Time") + 
-      ggtitle("Detail of E") +
+      ggtitle("Detail of Exposed") +
       scale_color_manual(values = cols_SEIRD,
                          name = "Compartment") +
       scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
@@ -347,7 +331,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
       theme_minimal() +
       ylab("Counts") +
       xlab("Time") + 
-      ggtitle("Detail of I") +
+      ggtitle("Detail of Infected") +
       scale_color_manual(values = cols_SEIRD,
                          name = "Compartment") +
       scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
@@ -367,7 +351,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
       theme_minimal() +
       ylab("Counts") +
       xlab("Time") + 
-      ggtitle("Detail of R") +
+      ggtitle("Detail of Recovered") +
       scale_color_manual(values = cols_SEIRD,
                          name = "Compartment") +
       scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
@@ -389,7 +373,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
         theme_minimal() +
         ylab("Counts") +
         xlab("Time") + 
-        ggtitle("Detail of D") +
+        ggtitle("Detail of Deceased") +
         scale_color_manual(values = cols_SEIRD,
                            name = "Compartment") +
         scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
@@ -418,7 +402,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
       theme_minimal() +
       ylab("Counts") +
       xlab("Time") + 
-      ggtitle("Detail of S") +
+      ggtitle("Detail of Susceptible") +
       scale_color_manual(values = cols_SEIRD,
                          name = "Compartment") +
       scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
@@ -433,7 +417,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
       theme_minimal() +
       ylab("Counts") +
       xlab("Time") + 
-      ggtitle("Detail of E") +
+      ggtitle("Detail of Exposed") +
       scale_color_manual(values = cols_SEIRD,
                          name = "Compartment") +
       scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
@@ -448,7 +432,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
       theme_minimal() +
       ylab("Counts") +
       xlab("Time") + 
-      ggtitle("Detail of I") +
+      ggtitle("Detail of Infected") +
       scale_color_manual(values = cols_SEIRD,
                          name = "Compartment") +
       scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
@@ -463,7 +447,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
       theme_minimal() +
       ylab("Counts") +
       xlab("Time") + 
-      ggtitle("Detail of R") +
+      ggtitle("Detail of Recovered") +
       scale_color_manual(values = cols_SEIRD,
                          name = "Compartment") +
       scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
@@ -480,7 +464,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
         theme_minimal() +
         ylab("Counts") +
         xlab("Time") + 
-        ggtitle("Detail of D") +
+        ggtitle("Detail of Deceased") +
         scale_color_manual(values = cols_SEIRD,
                            name = "Compartment") +
         scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
@@ -504,6 +488,43 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
 ################################################################################
 ################################################################################
 
+#' Plot Observed data
+#' 
+#' Plot the Observed compartment counts.
+#'
+#' @param obs Data frame, observed data.
+#' @param log Logical indicating whether to plot the counts on a log scale.
+#' 
+#' @return ggplot object: the counts plot.
+#' @export
+plotting_real_data <- function(obs, log = TRUE) {
+
+  cols_SEIR <- c(R = "#F0E442")
+  labels_SEIR <- c(R = "Recovered")
+  
+
+  obs <- obs %>%
+    mutate(
+      R = ifelse(R <= 0, 0.001, R)
+      )
+    
+  # Create the counts plot
+  real_compartments <- ggplot(obs, aes(x = t)) +
+    geom_line(aes(y = R, color = 'R')) +
+    theme_minimal() +
+    ylab("Compartment counts") +
+    xlab("Time") + 
+    ggtitle("Real observations") +
+    scale_color_manual(values = cols_SEIR,
+                       labels = labels_SEIR, 
+                       name = "Compartments") +
+    guides(color = guide_legend(order = 1)) +
+    if (log) scale_y_continuous(trans = 'log10', name = "log(compartment counts)") else NULL
+  
+  # Return the plot
+  return(real_compartments)
+}
+
 #' Plot inferred compartment counts.
 #'
 #' This function generates a plot of the observed and inferred compartment counts.
@@ -512,22 +533,15 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
 #' @param X_plot Data frame containing the inferred compartment counts.
 #' @return A ggplot object displaying the observed and inferred compartment counts.
 #' @export
-plot_data_real <- function(obs, X_plot) {
+plot_compartments_real <- function(obs, X_plot) {
   plot_title <- "Compartments counts"
   
-  cols <- c("S" = "#E69F00", 
-            "E" = "#56B4E9",
-            "I" = "#009E73", 
-            "R" = "#F0E442",
-            "D" = "#0072B2")
+  cols_SEIR <- c(S = "#E69F00", E = "#56B4E9", I = "#009E73", R = "#F0E442")
+  labels_SEIR <- c(S = "Susceptible", E = "Exposed", I = "Infected", R = "Recovered")
   
   obs <- obs %>%
     mutate(
-      #S = ifelse(S <= 0, 0.001, S),
-      #E = ifelse(E <= 0, 0.001, E),
-      #I = ifelse(I <= 0, 0.001, I),
-      R = ifelse(R <= 0, 0.001, R),
-      D = ifelse(D <= 0, 0.001, D)
+      R = ifelse(R <= 0, 0.001, R)
     )
 
   X_plot <- X_plot %>%
@@ -535,25 +549,20 @@ plot_data_real <- function(obs, X_plot) {
       S = ifelse(S <= 0, 0.001, S),
       E = ifelse(E <= 0, 0.001, E),
       I = ifelse(I <= 0, 0.001, I),
-      R = ifelse(R <= 0, 0.001, R),
-      D = ifelse(D <= 0, 0.001, D)
+      R = ifelse(R <= 0, 0.001, R)
     )
   
   ggplot() +
-    #geom_line(data = obs, aes(x = t, y = S, color = "S", linetype = "Data"), linewidth = 0.3) +
-    #geom_line(data = obs, aes(x = t, y = E, color = "E", linetype = "Data"), linewidth = 0.3) +
-    #geom_line(data = obs, aes(x = t, y = I, color = "I", linetype = "Data"), linewidth = 0.3) +
     geom_line(data = obs, aes(x = t, y = R, color = "R", linetype = "Data"), linewidth = 0.3) +
-    geom_line(data = obs, aes(x = t, y = D, color = "D", linetype = "Data"), linewidth = 0.3) +
     geom_line(data = X_plot, aes(x = t, y = S, color = "S", linetype = "Inferred"), linewidth = 1) +
     geom_line(data = X_plot, aes(x = t, y = E, color = "E", linetype = "Inferred"), linewidth = 1) +
     geom_line(data = X_plot, aes(x = t, y = I, color = "I", linetype = "Inferred"), linewidth = 1) +
     geom_line(data = X_plot, aes(x = t, y = R, color = "R", linetype = "Inferred"), linewidth = 1) +
-    geom_line(data = X_plot, aes(x = t, y = D, color = "D", linetype = "Inferred"), linewidth = 1) +
-    labs(x = "Time", y = "Count (log-scale)", title = plot_title) +
+    labs(x = "Time", y = "log(compartment counts)", title = plot_title) +
     theme_minimal() +
     scale_y_continuous(trans = 'log10') + 
-    scale_color_manual(values = cols,
+    scale_color_manual(values = cols_SEIR,
+                       labels = labels_SEIR,
                        name = "Compartments") +
     scale_linetype_manual(values = c("Data" = "solid", "Inferred" = "solid"),
                           name = "Lines",
@@ -570,22 +579,20 @@ plot_data_real <- function(obs, X_plot) {
 #' @param X_plot Data frame containing the inferred compartment counts.
 #' @return A list containing five ggplot objects comparing the SEIRD compartments.
 #' @export
-plot_compartment_real <- function(obs,X_plot) {
+plot_compartments_separately_real <- function(obs,X_plot) {
   
   cols <- c("S" = "#E69F00", 
             "E" = "#56B4E9",
             "I" = "#009E73", 
-            "R" = "#F0E442",
-            "D" = "#0072B2")
+            "R" = "#F0E442")
   
   plot_S <- ggplot() +
-    #geom_line(data = obs, aes(x = t, y = S, color = "S", linetype = "Data"), linewidth = 0.3) +
     geom_line(data = X_plot, aes(x = t, y = S, color = "S", linetype = "Inferred"), linewidth = 1) +
     geom_ribbon(data = X_plot, aes(x = t, ymin = minS, ymax = maxS), fill = "#E69F00", alpha = 0.3) +
     theme_minimal() +
-    ylab("count") +
-    xlab("time") + 
-    ggtitle("Detail of S") +
+    ylab("Counts") +
+    xlab("Time") +
+    ggtitle("Detail of Susceptible") +
     scale_color_manual(values = cols,
                        name = "Compartments") +
     # scale_linetype_manual(values = c("Data" = "solid", "Inferred" = "solid"),
@@ -598,13 +605,12 @@ plot_compartment_real <- function(obs,X_plot) {
                           guide = guide_legend(override.aes = list(color = "grey")))
   
   plot_E <- ggplot() +
-    #geom_line(data = obs, aes(x = t, y = E, color = "E", linetype = "Data"), linewidth = 0.3) +
     geom_line(data = X_plot, aes(x = t, y = E, color = "E", linetype = "Inferred"), linewidth = 1) +
     geom_ribbon(data = X_plot, aes(x = t, ymin = minE, ymax = maxE), fill = "#56B4E9", alpha = 0.3) +
     theme_minimal() +
-    ylab("count") +
-    xlab("time") + 
-    ggtitle("Detail of E") +
+    ylab("Counts") +
+    xlab("Time") +
+    ggtitle("Detail of Exposed") +
     scale_color_manual(values = cols,
                        name = "Compartments") +
     # scale_linetype_manual(values = c("Data" = "solid", "Inferred" = "solid"),
@@ -617,13 +623,12 @@ plot_compartment_real <- function(obs,X_plot) {
                           guide = guide_legend(override.aes = list(color = "grey")))
   
   plot_I <- ggplot() +
-    #geom_line(data = obs, aes(x = t, y = I, color = "I", linetype = "Data"), linewidth = 0.3) +
     geom_line(data = X_plot, aes(x = t, y = I, color = "I", linetype = "Inferred"), linewidth = 1) +
     geom_ribbon(data = X_plot, aes(x = t, ymin = minI, ymax = maxI), fill = "#009E73", alpha = 0.3) +
     theme_minimal() +
-    ylab("count") +
-    xlab("time") + 
-    ggtitle("Detail of I") +
+    ylab("Counts") +
+    xlab("Time") + 
+    ggtitle("Detail of Infected") +
     scale_color_manual(values = cols,
                        name = "Compartments") +
     # scale_linetype_manual(values = c("Data" = "solid", "Inferred" = "solid"),
@@ -640,9 +645,9 @@ plot_compartment_real <- function(obs,X_plot) {
     geom_line(data = X_plot, aes(x = t, y = R, color = "R", linetype = "Inferred"), linewidth = 1) +
     geom_ribbon(data = X_plot, aes(x = t, ymin = minR, ymax = maxR), fill = "#F0E442", alpha = 0.3) +
     theme_minimal() +
-    ylab("count") +
-    xlab("time") + 
-    ggtitle("Detail of R") +
+    ylab("Counts") +
+    xlab("Time") + 
+    ggtitle("Detail of Recovered") +
     scale_color_manual(values = cols,
                        name = "Compartments") +
     scale_linetype_manual(values = c("Data" = "solid", "Inferred" = "solid"),
@@ -650,20 +655,6 @@ plot_compartment_real <- function(obs,X_plot) {
                           labels = c("Observed data", "Inferred data"),
                           guide = guide_legend(override.aes = list(color = "grey"))) 
   
-  plot_D <- ggplot() +
-    geom_line(data = obs, aes(x = t, y = D, color = "D", linetype = "Data"), linewidth = 0.3) +
-    geom_line(data = X_plot, aes(x = t, y = D, color = "D", linetype = "Inferred"), linewidth = 1) +
-    geom_ribbon(data = X_plot, aes(x = t, ymin = minD, ymax = maxD), fill = "#0072B2", alpha = 0.3) +
-    theme_minimal() +
-    ylab("count") +
-    xlab("time") + 
-    ggtitle("Detail of D") +
-    scale_color_manual(values = cols,
-                       name = "Compartments") +
-    scale_linetype_manual(values = c("Data" = "solid", "Inferred" = "solid"),
-                          name = "Lines",
-                          labels = c("Observed data", "Inferred data"),
-                          guide = guide_legend(override.aes = list(color = "grey"))) 
   
-  return(list(plot_S, plot_E, plot_I, plot_R, plot_D))
+  return(list(plot_S, plot_E, plot_I, plot_R))
 }

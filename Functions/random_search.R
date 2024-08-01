@@ -12,24 +12,29 @@
 #' @param eta Fatality rate.
 #' @param pop Population size.
 #' @param beta0 Initial contact rate value. 
-#' @param jit Boolean, set TRUE to add a jitter to the innovation covariance (optional).
 #' @param seed Seed for random number generation. Default is 5.
 #' @param num_param_sets Number of parameter sets to sample.
 #' @param seq_l Sequence of values for the `l` hyperparameter. 
 #' @param seq_wiener_X Sequence of values for the `noise_wiener_X` hyperparameter.
 #' @param seq_wiener_U Sequence of values for the `noise_wiener_U` hyperparameter.
 #' @param seq_beta0prime Sequence of values for the `beta0prime` hyperparameter. 
+#' @param seq_jit Sequence of values for the `jit` hyperparameter. 
+#' @param seq_clip_X Sequence of values for the `clip_X` hyperparameter. 
+#' @param seq_clip_U Sequence of values for the `clip_U` hyperparameter. 
 #'
 #' @return A data frame containing the summary of results for each sampled set of hyperparameters. The data frame includes the hyperparameter values, mean and median scores for SPE, NLPD, and CRPS.
 #' @export
 run_random_search <- function(model, obs_to_use, df_beta, noise, 
-                              lambda, gamma, eta, pop, beta0, jit = FALSE,
+                              lambda, gamma, eta, pop, beta0,
                               seed = 5, 
                               num_param_sets, 
                               seq_l, 
                               seq_wiener_X, 
                               seq_wiener_U, 
-                              seq_beta0prime) {
+                              seq_beta0prime,
+                              seq_jit,
+                              seq_clip_X,
+                              seq_clip_U) {
  
   # Start counting computation time
   tic("Duration of the whole workflow")
@@ -38,7 +43,10 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
     l = seq_l,
     noise_wiener_X = seq_wiener_X,
     noise_wiener_U = seq_wiener_U,
-    beta0prime = seq_beta0prime
+    beta0prime = seq_beta0prime,
+    jit = seq_jit,
+    clip_X = seq_clip_X,
+    clip_U = seq_clip_U
   )
   
   set.seed(seed) 
@@ -60,6 +68,9 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
   
   # Generate time grids for inference
   grids <- generate_grid(obs_to_use, num_points_between = 0)
+  
+  # Initialize a counter for warnings
+  warning_count <- 0
   
   for (i in 1:num_param_sets) {
     param_i <- sampled_grid[i, ]
@@ -84,30 +95,54 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
       num_initial_values = 1
     )
     
-    # Run inference
-    inference_results <- inference(model = model, 
-                                   grids = grids, 
-                                   obs = obs_to_use, 
-                                   jit = jit,
-                                   initial_params = initial_params)
+    # Run inference with error handling
+    inference_results <- tryCatch({
+      inference(model = model, 
+                grids = grids, 
+                obs = obs_to_use, 
+                jit = param_i$jit,
+                clip_X = param_i$clip_X,
+                clip_U = param_i$clip_U,
+                initial_params = initial_params)
+    },
+    warning = function(w) {
+      warning_count <<- warning_count + 1
+      # Return NULL or an appropriate placeholder
+      return(NULL)
+    },
+    error = function(e) {
+      warning_count <<- warning_count + 1
+      # Return NULL or an appropriate placeholder
+      return(NULL)
+    }
+    )
     
-    # Process data for scoring and visualization
-    processed_data <- process_data(inference_results = inference_results, 
-                                   grids = grids)
-    U_plot <- processed_data$U_plot
+    # Check if inference was successful
+    if (!is.null(inference_results)) {
+      # Process data for scoring and visualization
+      processed_data <- process_data(inference_results = inference_results, 
+                                     grids = grids)
+      U_plot <- processed_data$U_plot
+      
+      # Compute the different scores
+      score_SPE <- squared_prediction_error(U_plot, df_beta)
+      score_NLPD <- negative_log_predictive_density(U_plot, df_beta)
+      score_CRPS <- continuous_ranked_probability_score(U_plot, df_beta)
+      
+      # Store results (during grid search)
+      results_grid_search[i, ] <- c(param_i$l, param_i$noise_wiener_X, param_i$noise_wiener_U, param_i$beta0prime, param_i$jit, param_i$clip_X, param_i$clip_U, score_SPE, score_NLPD, score_CRPS)
+    } else {
+      # Handle the case where inference_results is NULL
+      results_grid_search[i, 1:num_params] <- c(param_i$l, param_i$noise_wiener_X, param_i$noise_wiener_U, param_i$beta0prime, param_i$jit, param_i$clip_X, param_i$clip_U)
+    }
     
-    # Compute the different scores
-    score_SPE <- squared_prediction_error(U_plot, df_beta)
-    score_NLPD <- negative_log_predictive_density(U_plot, df_beta)
-    score_CRPS <- continuous_ranked_probability_score(U_plot, df_beta)
-    
-    # Store results (during grid search)
-    results_grid_search[i, ] <- c(param_i$l, param_i$noise_wiener_X, param_i$noise_wiener_U, param_i$beta0prime, score_SPE, score_NLPD, score_CRPS)
-
     # Update progress bar
     pb$tick()
     
   } # End of grid search
+  
+  # Print the number of warnings encountered
+  message("Number of warnings encountered: ", warning_count)
   
   # Extract the parameter values
   params <- results_grid_search[, 1:num_params]
@@ -133,6 +168,9 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
     noise_wiener_X = params[, 2],
     noise_wiener_U = params[, 3],
     beta0prime = params[, 4],
+    jit = params[, 5],
+    clip_X = params[, 6],
+    clip_U = params[, 7],
     mean_SPE = mean_SPE,
     median_SPE = median_SPE,
     mean_NLPD = mean_NLPD,
@@ -163,16 +201,19 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
 plot_scores <- function(results_summary, 
                         parameters_to_plot = 
                           c('l', 'noise_wiener_X', 
-                            'noise_wiener_U', 'beta0prime')) {
+                            'noise_wiener_U', 'beta0prime',
+                            'jit', 'clip_X', 'clip_U')) {
   
   # Function to plot mean scores for a given parameter
   plot_mean_scores <- function(df, parameter) {
     df %>%
+      filter(!is.na(mean_SPE) & !is.na(mean_NLPD) & !is.na(mean_CRPS)) %>%  # Remove NA values
       ggplot(aes_string(x = parameter)) +
       geom_point(aes(y = mean_SPE, color = "SPE")) +
       geom_point(aes(y = mean_NLPD, color = "NLPD")) +
       geom_point(aes(y = mean_CRPS, color = "CRPS")) +
-      labs(title = paste("Mean scores for parameter", parameter), x = parameter, y = "Mean score") +
+      labs(title = paste("Mean scores for parameter\n", parameter), x = parameter, y = "Mean score",
+           color = "Score") +
       scale_color_manual(values = c("SPE" = "#E69F00", "NLPD" = "#56B4E9", "CRPS" = "#009E73")) +
       theme_minimal()
   }
@@ -180,11 +221,13 @@ plot_scores <- function(results_summary,
   # Function to plot median scores for a given parameter
   plot_median_scores <- function(df, parameter) {
     df %>%
+      filter(!is.na(median_SPE) & !is.na(median_NLPD) & !is.na(median_CRPS)) %>%  # Remove NA values
       ggplot(aes_string(x = parameter)) +
       geom_point(aes(y = median_SPE, color = "SPE")) +
       geom_point(aes(y = median_NLPD, color = "NLPD")) +
       geom_point(aes(y = median_CRPS, color = "CRPS")) +
-      labs(title = paste("Median scores for parameter", parameter), x = parameter, y = "Median score") +
+      labs(title = paste("Median scores for parameter\n", parameter), x = parameter, y = "Median score",
+           color = "Score") +
       scale_color_manual(values = c("SPE" = "#E69F00", "NLPD" = "#56B4E9", "CRPS" = "#009E73")) +
       theme_minimal()
   }

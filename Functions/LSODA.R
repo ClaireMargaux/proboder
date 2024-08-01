@@ -12,7 +12,7 @@
 #' @param steps Size of the time steps of the generated data.
 #' @param max_time Last time step of the generated data.
 #' @param pop Population size of generated data.
-#' @param beta Function; contact rate to be used for simulation.
+#' @param beta Function; transmission rate to be used for simulation.
 #' @examples
 #' # Beta function: sine
 #' # beta <- function(t){0.05*sin(t/10)+0.8}
@@ -23,7 +23,7 @@
 #' @param gamma Recovery rate.
 #' @param eta Fatality rate.
 #' 
-#' @return List containing two data frames: (1) (noisy) simulated counts and (2) predefined contact rate.
+#' @return List containing two data frames: (1) (noisy) simulated counts and (2) predefined transmission rate.
 #' @export
 simulate_data_LSODA <- function(model, noise = 0, seed = 5, steps = 1, max_time = 30, 
                                 lambda, gamma, eta = 0, pop, beta, xstart) {
@@ -118,7 +118,7 @@ simulate_data_LSODA <- function(model, noise = 0, seed = 5, steps = 1, max_time 
 
 #' Plot Simulated data and beta values
 #' 
-#' Plot the simulated compartment counts and the predefined contact rate.
+#' Plot the simulated compartment counts and the predefined transmission rate.
 #' 
 #' @param model String, type of model to be used for simulation ('SEIRD' or 'SEIR' available).
 #' @param sim List of data frames from simulation.
@@ -137,20 +137,11 @@ plotting_simulated_data_lsoda <- function(model, sim,
   obs <- sim$obs
   df_beta <- sim$df_beta
   
-  cols_SEIRD <- c("S" = "#E69F00", 
-                  "E" = "#56B4E9",
-                  "I" = "#009E73", 
-                  "R" = "#F0E442",
-                  "D" = "#0072B2")
+  cols_SEIRD <- c(S = "#E69F00", E = "#56B4E9", I = "#009E73", R = "#F0E442", D = "#0072B2")
+  labels_SEIRD <- c(S = "Susceptible", E = "Exposed", I = "Infected", R = "Recovered", D = "Deceased")
   
-  cols_SEIR <- c("S" = "#E69F00", 
-                 "E" = "#56B4E9",
-                 "I" = "#009E73", 
-                 "R" = "#F0E442")
-  
-  labels_SEIRD <- c('S','E','I','R','D')
-  
-  labels_SEIR <- c('S','E','I','R')
+  cols_SEIR <- c(S = "#E69F00", E = "#56B4E9", I = "#009E73", R = "#F0E442")
+  labels_SEIR <- c(S = "Susceptible", E = "Exposed", I = "Infected", R = "Recovered")
   
   if (!is.null(sim$obs_with_noise)) {
     obs_with_noise <- sim$obs_with_noise
@@ -240,17 +231,6 @@ plotting_simulated_data_lsoda <- function(model, sim,
         if (log) scale_y_continuous(trans = 'log10', name = "log(compartment counts)") else NULL
       
     }
-    
-    # Create the beta plot
-    simulated_beta <- ggplot() +
-      geom_line(data = df_beta, aes(x = t, y = beta, color = "Simulated contact rate"), linetype = "dashed") +
-      theme_minimal() +
-      labs(x = "Time", y = "", color = "Legend") +  
-      scale_color_manual(values = c("Simulated contact rate" = "#E69F00"),
-                         labels = c("Simulated contact rate"), name = "Line") +
-      ggtitle("Simulated contact rate") +
-      theme(legend.position = "top")
-    
   }
   
   if (model == 'SEIR') {
@@ -331,17 +311,17 @@ plotting_simulated_data_lsoda <- function(model, sim,
       
     }
     
-    # Create the beta plot
-    simulated_beta <- ggplot() +
-      geom_line(data = df_beta, aes(x = t, y = beta, color = "Simulated contact rate"), linetype = "dashed") +
-      theme_minimal() +
-      labs(x = "Time", y = "", color = "Legend") +  
-      scale_color_manual(values = c("Simulated contact rate" = "#E69F00"),
-                         labels = c("Simulated contact rate"), name = "Line") +
-      ggtitle("Simulated contact rate") +
-      theme(legend.position = "top")
-    
   }
+  
+  # Create the beta plot
+  simulated_beta <- ggplot() +
+    geom_line(data = df_beta, aes(x = t, y = beta, color = "Simulated transmission rate"), linetype = "dashed") +
+    theme_minimal() +
+    labs(x = "Time", y = "", color = "Legend") +  
+    scale_color_manual(values = c("Simulated transmission rate" = "#E69F00"),
+                       labels = c("Simulated transmission rate"), name = "Line") +
+    ggtitle("Simulated transmission rate") +
+    theme(legend.position = "top")
   
   # Return the plots as a list
   list(simulated_compartments = simulated_compartments, simulated_beta = simulated_beta)

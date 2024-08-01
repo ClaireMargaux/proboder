@@ -272,8 +272,8 @@ update_of_observations <- function(m, P, y, H, R) {
   
   v <- y - H %*% m # residual
   S <- H %*% P %*% t(H) + R # innovation covariance
-  #S_inv <- svd.inverse(S)
-  S_inv <- solve(S)
+  S_inv <- svd.inverse(S)
+  # S_inv <- solve(S)
   K <- P %*% t(H) %*% S_inv # Kalman gain
   m_out <- m + K %*% v # updated mean
   P_out <- P - K %*% S %*% t(K) # updated covariance
@@ -291,7 +291,7 @@ update_of_observations <- function(m, P, y, H, R) {
 #' @param P Numeric matrix, predicted covariance of (X,U).
 #' @param h Numeric vector, measurement model.
 #' @param J Numeric matrix, Jacobian of the measurement model.
-#' @param jit Boolean, set TRUE to add a jitter to the innovation covariance.
+#' @param jit Numeric, value to add as jitter to the innovation covariance.
 #' @return A list containing the updated mean and covariance of U and X.
 #' @export
 update_of_states <- function(m, P, h, J, jit) {
@@ -300,21 +300,21 @@ update_of_states <- function(m, P, h, J, jit) {
   #   P: Numeric matrix, predicted covariance of (X,U).
   #   h: Numeric vector, measurement model.
   #   J: Numeric matrix, Jacobian of the measurement model.
-  #   jit: Boolean, set TRUE to add a jitter to the innovation covariance.
+  #   jit: Numeric, value to add as jitter to the innovation covariance.
   #
   # Returns:
   #   A list containing the updated mean and covariance of U and X.
   
-  if (jit == TRUE) {
-    jit <- diag(0.001, nrow = nrow(J))
+  if (is.null(jit)) {
+    jit_mat <- diag(0, nrow = nrow(J))
   } else {
-    jit <- diag(0, nrow = nrow(J))
+    jit_mat <- diag(jit, nrow = nrow(J))
   }
   
   v <- - h # residual
-  S <- J %*% P %*% t(J) + jit # innovation covariance
-  # S_inv <- svd.inverse(S)
-  S_inv <- solve(S)
+  S <- J %*% P %*% t(J) + jit_mat # innovation covariance
+  S_inv <- svd.inverse(S)
+  # S_inv <- solve(S)
   K <- P %*% t(J) %*% S_inv # Kalman gain
   m_out <- m + K %*% v # updated mean
   P_out <- P - K %*% S %*% t(K) # updated covariance
@@ -358,41 +358,25 @@ matrix_P <- function(P_X, P_U) {
 #' @param model String, type of model to be used ('SEIRD' or 'SEIR' available).
 #' @param grids List of time grids for inference.
 #' @param obs Data frame, contains the dates and the compartment counts.
-#' @param jit Boolean, set TRUE to add a jitter to the innovation covariance (optional).
+#' @param jit Numeric, value to add as jitter to the innovation covariance (optional, default 0.001).
+#' @param clip_X Numeric, value to clip (from below) the variance of X (optional, default 10).
+#' @param clip_U Numeric, value to clip (from below) the variance of U (optional, default 0.1).
 #' @param initial_params List of initial parameters obtained from the initialization function.
 #'
 #' @return A list with the inferred values of X, U, P_X, and P_U.
 #' @export
-inference <- function(model, grids, obs, jit = FALSE, initial_params){
+inference <- function(model, grids, obs, 
+                      jit = 0.001, clip_X = 10, clip_U = 0.1,
+                      initial_params){
   # Arguments:
   #   model: String, type of model to be used ('SEIRD' or 'SEIR' available).
-  #   grids: List of time grids for inference, has the following entries:
-  #
-  #   time_grid: Numeric vector, time grid for the inference.
-  #   data_grid: Numeric vector, time grid for the updates on the observations.
-  #   ode_grid: Numeric vector, time grid for the updates on the ODE.
-  #   steps: Numeric, time steps.
-  #
+  #   grids: List of time grids for inference.
   #   obs: Data frame, contains the dates and the compartment counts.
-  #   jit: Boolean, set TRUE to add a jitter to the innovation covariance.
-  #   initial_params: List of initial parameters obtained from the initialization function, has the following entries:
-  #
-  #   X: Vector representing the solution of the ODE and its 2 first derivatives.
-  #   U: Vector of length 2 representing the latent parameter of the ODE and its first derivative.
-  #   P_X: Numeric matrix, predicted covariance of X.
-  #   P_U: Numeric matrix, predicted covariance of U.
-  #   F_X: Numeric matrix, drift matrix of X.
-  #   F_U: Numeric matrix, drift matrix of U.
-  #   L_X: Numeric matrix, dispersion matrix of X.
-  #   L_U: Numeric matrix, dispersion matrix of U.
-  #   noise_wiener_X: Numeric matrix, noise of the Wiener process driving X.
-  #   noise_wiener_U: Numeric matrix, noise of the Wiener process driving U.
-  #   H: Numeric matrix, noise of the observations.
-  #   pop: Integer, total population.
-  #   lambda: Numeric, latency rate.
-  #   gamma: Numeric, recovery rate.
-  #   eta: Numeric, fatality rate.
-  #
+  #   jit: Numeric, value to add as jitter to the innovation covariance (optional, default 0.001).
+  #   clip_X: Numeric, value to clip (from below) the variance of X (optional, default 10).
+  #   clip_U: Numeric, value to clip (from below) the variance of U (optional, default 0.1).
+  #   initial_params: List of initial parameters obtained from the initialization function.
+  # 
   # Returns:
   #   A list with the inferred values of X, U, P_X and P_U.
   
@@ -526,8 +510,12 @@ inference <- function(model, grids, obs, jit = FALSE, initial_params){
         P_U_pred <- as.matrix(updated_states[[2]][13:14, 13:14])
       }
     }
-  
-    # Store current values and covariances
+    
+    # Avoid overconfidence (clipping)
+    diag(P_X_pred)[diag(P_X_pred) < clip_X] <- clip_X
+    diag(P_U_pred)[diag(P_U_pred) < clip_U] <- clip_U
+    
+    # Store current values and covariance matrices
     X_values[, i] <- X_pred
     U_values[, i] <- U_pred
     P_X_values[, , i] <- P_X_pred

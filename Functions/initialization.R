@@ -47,6 +47,11 @@ load_required_packages <- function() {
 #' @param noise_wiener_U Noise of the Wiener process modelling U.
 #' @param pop Population.
 #' @param num_initial_values Number of values over which we take the mean to initialize X.
+#' @param start_S Starting count of S compartment (optional).
+#' @param start_E Starting count of E compartment (optional).
+#' @param start_I Starting count of I compartment (optional).
+#' @param start_R Starting count of R compartment (optional).
+#' @param start_D Starting count of D compartment (optional).
 #' @return A list containing initialized parameters and matrices.
 #' @export
 initialization <- function(model, obs, 
@@ -56,7 +61,10 @@ initialization <- function(model, obs,
                            noise_X, noise_U,
                            noise_wiener_X, noise_wiener_U,
                            pop,
-                           num_initial_values = 1){
+                           num_initial_values = 1,
+                           start_S = NULL, start_E = NULL, 
+                           start_I = NULL, start_R = NULL, 
+                           start_D = NULL){
   
   # Get vector indicating which compartments have been observed
   get_observation_vector <- function(obs_data) {
@@ -88,11 +96,31 @@ initialization <- function(model, obs,
   
     # Initialize compartment counts and their two first derivatives
     X0 <- numeric(5)
-    X0[1] <- ifelse("S" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "S")]), pop)
-    X0[2] <- ifelse("E" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "E")]), 1)
-    X0[3] <- ifelse("I" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "I")]), 0)
-    X0[4] <- ifelse("R" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "R")]), 0)
-    X0[5] <- ifelse("D" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "D")]), 0)
+    X0[1] <- if (!is.null(start_S)) {
+      start_S
+    } else {
+      ifelse("S" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "S")]), pop)
+    }
+    X0[2] <- if (!is.null(start_E)) {
+      start_E
+    } else {
+      ifelse("E" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "E")]), 1)
+    }
+    X0[3] <- if (!is.null(start_I)) {
+      start_I
+    } else {
+      ifelse("I" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "I")]), 0)
+    }
+    X0[4] <- if (!is.null(start_R)) {
+      start_R
+    } else {
+      ifelse("R" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "R")]), 0)
+    }
+    X0[5] <- if (!is.null(start_D)) {
+      start_D
+    } else {
+      ifelse("D" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "D")]), 0)
+    }
     X0 <- unlist(X0)
     X1 <- f(model, X0, beta0, pop, lambda, gamma, eta) # Initial values for 1st derivatives
     X2 <- diag(jacobian_f(model, X0, beta0, pop, lambda, gamma, eta)) # Initial values for 2nd derivatives
@@ -113,10 +141,26 @@ initialization <- function(model, obs,
     
     # Initialize compartment counts and their two first derivatives
     X0 <- numeric(4)
-    X0[1] <- ifelse("S" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "S")]), pop)
-    X0[2] <- ifelse("E" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "E")]), 1)
-    X0[3] <- ifelse("I" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "I")]), 0)
-    X0[4] <- ifelse("R" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "R")]), 0)
+    X0[1] <- if (!is.null(start_S)) {
+      start_S
+    } else {
+      ifelse("S" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "S")]), pop)
+    }
+    X0[2] <- if (!is.null(start_E)) {
+      start_E
+    } else {
+      ifelse("E" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "E")]), 1)
+    }
+    X0[3] <- if (!is.null(start_I)) {
+      start_I
+    } else {
+      ifelse("I" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "I")]), 0)
+    }
+    X0[4] <- if (!is.null(start_R)) {
+      start_R
+    } else {
+      ifelse("R" %in% colnames(obs), mean(obs[1:num_initial_values, which(colnames(obs) == "R")]), 0)
+    }
     X0 <- unlist(X0)
     X1 <- f(model, X0, beta0, pop, lambda, gamma, eta) # Initial values for 1st derivatives
     X2 <- diag(jacobian_f(model, X0, beta0, pop, lambda, gamma, eta)) # Initial values for 2nd derivatives
@@ -175,10 +219,11 @@ initialization <- function(model, obs,
 #' 
 #' @param obs Data frame containing the observed compartments.
 #' @param num_points_between Integer specifying the number of points to add between observations.
+#' @param daily_or_weekly To define the time steps (optional).
 #' 
 #' @return A list containing the overall time grid, data grid, ODE grid, and time steps.
 #' @export
-generate_grid <- function(obs, num_points_between) {
+generate_grid <- function(obs, num_points_between, daily_or_weekly = NULL) {
   
   # Extract the observed time points
   data_grid <- obs$t
@@ -204,7 +249,15 @@ generate_grid <- function(obs, num_points_between) {
   time_grid <- sort(unique(c(data_grid, ode_grid)))
   
   # Calculate time steps
-  steps <- ode_grid[2] - ode_grid[1]
+  if(is.null(daily_or_weekly)){
+    steps <- ode_grid[2] - ode_grid[1]
+  } else {
+    if(daily_or_weekly == 'daily'){
+      steps = 1
+    } else {
+      steps = 7
+    }
+  }
   
   # Return the grids and time steps as a list
   list(
