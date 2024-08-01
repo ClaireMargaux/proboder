@@ -30,8 +30,8 @@ Infer the contact rate from public health data using a SEIR(D) model. Inference 
 ## Data
 
 Data from the Covid-19 Switzerland Dashboard of the Federal Office of Public Health (FOPH):
-- COVID19Cases_geoRegion.csv: Daily recording schedules by geographical region for cases, from 24 February 2020 to 1 January 2023.
-- COVID19Death_geoRegion_w.csv: Weekly recording timelines by geographical region for cases, from 24 February 2020 to 1 January 2023.
+- COVID19Cases_geoRegion_w.csv: Weekly record timelines by geographical region for cases from February 24, 2020, to January 1, 2023.
+− COVID19Cases_geoRegion.csv: Daily record timelines by geographical region for cases from February 24, 2020, to January 1, 2023.
  
 ## Algorithm
 
