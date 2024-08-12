@@ -26,7 +26,7 @@ load_required_packages <- function() {
     if (!requireNamespace(pkg, quietly = TRUE)) {
       install.packages(pkg, dependencies = TRUE)
     }
-    library(pkg, character.only = TRUE)
+    suppressPackageStartupMessages(library(pkg, character.only = TRUE))
   }
 }
 
@@ -134,7 +134,7 @@ initialization <- function(model, obs,
     H <- as.matrix(sparseMatrix(i = 1:length(ind), j = ind, x = 1, dims = c(length(ind),17)))
     
     # Noise of prior
-    P_X <- matrix(noise_X, nrow = 15, ncol = 15)
+    P_X <- diag(noise_X, nrow = 15, ncol = 15)
   }
   
   if (model == 'SEIR') {
@@ -174,7 +174,7 @@ initialization <- function(model, obs,
     H <- as.matrix(sparseMatrix(i = 1:length(ind), j = ind, x = 1, dims = c(length(ind),14)))
     
     # Noise of prior
-    P_X <- matrix(noise_X, nrow = 12, ncol = 12)
+    P_X <- diag(noise_X, nrow = 12, ncol = 12)
     
     # Fatality rate
     eta <- 0
@@ -198,7 +198,7 @@ initialization <- function(model, obs,
   }
   
   # Noise of prior
-  P_U <- matrix(noise_U, nrow = 2, ncol = 2)
+  P_U <- diag(noise_U, nrow = 2, ncol = 2)
 
   # Noise of Wiener processes
   noise_wiener_X <- diag(noise_wiener_X, nrow = ncol(L_X), ncol = ncol(L_X))

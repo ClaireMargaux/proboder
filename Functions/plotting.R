@@ -3,14 +3,14 @@
 #' This function generates a plot of the estimated transmission rate along with its 95%-confidence interval.
 #'
 #' @param U_plot Data frame containing the estimated transmission rate values.
-#' @param real_beta_df Data frame containing the real transmission rate values (optional).
+#' @param df_beta Data frame containing the real transmission rate values (optional).
 #' @param latency_rate Numeric value indicating the latency rate.
 #' @param recovery_rate Numeric value indicating the recovery rate.
 #' @param fatality_rate Numeric value indicating the fatality rate (optional).
 #' @param lengthscale Numeric value indicating the length scale.
 #' @return A ggplot object displaying the transmission rate plot.
 #' @export
-plot_contact_rate_with_CI <- function(U_plot, 
+plot_transmission_rate_with_CI <- function(U_plot, 
                                       df_beta = NULL, 
                                       latency_rate, recovery_rate, 
                                       fatality_rate = NULL, 
@@ -32,10 +32,10 @@ plot_contact_rate_with_CI <- function(U_plot,
       theme(legend.position = "top") +
       guides(color = guide_legend(order = 1),
              fill = guide_legend(order = 2)) +
-      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Length scale:", lengthscale), hjust = 0, vjust = 2, size = 3) +
-      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Latency rate:", round(latency_rate,4)), hjust = 0, vjust = 4, size = 3) +
-      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Recovery rate:", round(recovery_rate,4)), hjust = 0, vjust = 6, size = 3) +
-      if (fatality_rate > 0) annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Fatality rate:", round(fatality_rate,4)), hjust = 0, vjust = 8, size = 3) else NULL 
+      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Length scale:", lengthscale), hjust = 0, vjust = -10, size = 3) +
+      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Latency rate:", round(latency_rate,4)), hjust = 0, vjust = -8, size = 3) +
+      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Recovery rate:", round(recovery_rate,4)), hjust = 0, vjust = -6, size = 3) +
+      if (fatality_rate > 0) annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Fatality rate:", round(fatality_rate,4)), hjust = 0, vjust = -4, size = 3) else NULL 
 
   } else { # df_beta does not exist
     
@@ -52,10 +52,72 @@ plot_contact_rate_with_CI <- function(U_plot,
       theme(legend.position = "top") +
       guides(color = guide_legend(order = 1),
              fill = guide_legend(order = 2)) +
-      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Length scale:", lengthscale), hjust = 0, vjust = 2, size = 3) +
-      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Latency rate:", round(latency_rate,4)), hjust = 0, vjust = 4, size = 3) +
-      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Recovery rate:", round(recovery_rate,4)), hjust = 0, vjust = 6, size = 3) +
-      if (fatality_rate > 0) annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Fatality rate:", round(fatality_rate,4)), hjust = 0, vjust = 8, size = 3) else NULL 
+      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Length scale:", lengthscale), hjust = 0, vjust = -10, size = 3) +
+      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Latency rate:", round(latency_rate,4)), hjust = 0, vjust = -8, size = 3) +
+      annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Recovery rate:", round(recovery_rate,4)), hjust = 0, vjust = -6, size = 3) +
+      if (fatality_rate > 0) annotate("text", x = min(U_plot$t), y = max(U_plot$U_scaled), label = paste("Fatality rate:", round(fatality_rate,4)), hjust = 0, vjust = -4, size = 3) else NULL 
+  }
+}
+
+#' Plot inferred reproduction number.
+#'
+#' This function generates a plot of the estimated reproduction number along with its 95%-confidence interval.
+#'
+#' @param R_plot Data frame containing the estimated reproduction number values.
+#' @param df_R Data frame containing the real reproduction number values (optional).
+#' @param latency_rate Numeric value indicating the latency rate.
+#' @param recovery_rate Numeric value indicating the recovery rate.
+#' @param fatality_rate Numeric value indicating the fatality rate (optional).
+#' @param lengthscale Numeric value indicating the length scale.
+#' @return A ggplot object displaying the transmission rate plot.
+#' @export
+plot_reproduction_number_with_CI <- function(R_plot, 
+                                           df_R = NULL, 
+                                           latency_rate, recovery_rate, 
+                                           fatality_rate = NULL, 
+                                           lengthscale) {
+  
+  if (!is.null(df_R)) { # df_R exists
+    
+    ggplot() +
+      geom_ribbon(data = R_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
+      geom_line(data = df_R, aes(x = t, y = R, color = "Simulated reproduction number"), linetype = "dashed") +
+      geom_line(data = R_plot, aes(x = t, y = R, color = "Inferred reproduction number"), linewidth = 1) +
+      labs(x = "Time", y = "Reproduction number", title = "Reproduction number with 95%-confidence interval",
+           color = "Legend") +  
+      scale_color_manual(values = c("Inferred reproduction number" = "#0072B2", "Simulated reproduction number" = "#E69F00"),
+                         labels = c("Inferred reproduction number", "Simulated reproduction number"), name = "Lines") + 
+      scale_fill_manual(values = c("Error Area" = "#56B4E9"),
+                        labels = "Approx. 95%-confidence interval", name = "Ribbon") +
+      theme_minimal() +
+      theme(legend.position = "top") +
+      guides(color = guide_legend(order = 1),
+             fill = guide_legend(order = 2)) +
+      annotate("text", x = min(R_plot$t), y = max(R_plot$R), label = paste("Length scale:", lengthscale), hjust = 0, vjust = -10, size = 3) +
+      annotate("text", x = min(R_plot$t), y = max(R_plot$R), label = paste("Latency rate:", round(latency_rate,4)), hjust = 0, vjust = -8, size = 3) +
+      annotate("text", x = min(R_plot$t), y = max(R_plot$R), label = paste("Recovery rate:", round(recovery_rate,4)), hjust = 0, vjust = -6, size = 3) +
+      if (fatality_rate > 0) annotate("text", x = min(R_plot$t), y = max(R_plot$R), label = paste("Fatality rate:", round(fatality_rate,4)), hjust = 0, vjust = -4, size = 3) else NULL 
+    
+  } else { # df_R does not exist
+    
+    ggplot() +
+      geom_ribbon(data = R_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
+      geom_line(data = R_plot, aes(x = t, y = R, color = "Inferred reproduction number"), linewidth = 1) +
+      labs(x = "Time", y = "Reproduction number", title = "Reproduction number with 95%-confidence interval",
+           color = "Legend") +  
+      scale_color_manual(values = c("Inferred reproduction number" = "#0072B2"),
+                         labels = c("Inferred reproduction number"), name = "Lines") + 
+      scale_fill_manual(values = c("Error Area" = "#56B4E9"),
+                        labels = "Approx.  95%-confidence interval", name = "Ribbon") +
+      theme_minimal() +
+      theme(legend.position = "top") +
+      guides(color = guide_legend(order = 1),
+             fill = guide_legend(order = 2)) +
+      annotate("text", x = min(R_plot$t), y = max(R_plot$R), label = paste("Length scale:", lengthscale), hjust = 0, vjust = -10, size = 3) +
+      annotate("text", x = min(R_plot$t), y = max(R_plot$R), label = paste("Latency rate:", round(latency_rate,4)), hjust = 0, vjust = -8, size = 3) +
+      annotate("text", x = min(R_plot$t), y = max(R_plot$R), label = paste("Recovery rate:", round(recovery_rate,4)), hjust = 0, vjust = -6, size = 3) +
+      if (fatality_rate > 0) annotate("text", x = min(R_plot$t), y = max(R_plot$R), label = paste("Fatality rate:", round(fatality_rate,4)), hjust = 0, vjust = -4, size = 3) else NULL 
+    
   }
 }
 
@@ -657,4 +719,71 @@ plot_compartments_separately_real <- function(obs,X_plot) {
   
   
   return(list(plot_S, plot_E, plot_I, plot_R))
+}
+
+################################################################################
+################################################################################
+
+#' Plot condition numbers over time
+#'
+#' This function generates and displays four separate line plots for the condition numbers 
+#' of four matrices (S_obs, S_ode, P_X, P_U) over time. The plots are arranged in a 2x2 grid.
+#'
+#' @param data A data frame containing the condition numbers of four matrices over time.
+#' The data frame should have the following columns:
+#' - `time_grid`: The time points.
+#' - `cond_S_obs`: Condition number of the S_obs matrix.
+#' - `cond_S_ode`: Condition number of the S_ode matrix.
+#' - `cond_P_X`: Condition number of the P_X matrix.
+#' - `cond_P_U`: Condition number of the P_U matrix.
+#'
+#' @return A grid of four plots, each representing the condition number of a different matrix over time.
+#' The plots are displayed in a 2x2 arrangement.
+#'
+#' @import ggplot2
+#' @import gridExtra
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Example usage with a data frame `cond_plot`:
+#' plot_condition_numbers(cond_plot)
+#' }
+plot_condition_numbers <- function(data) {
+  
+  # Plot for cond_S_obs
+  p1 <- ggplot(data, aes(x = time_grid, y = cond_S_obs)) +
+    geom_line(color = "#E69F00") +
+    labs(title = "Condition number: S_obs",
+         x = "Time",
+         y = "Condition number") +
+    theme_minimal()
+  
+  # Plot for cond_S_ode
+  p2 <- ggplot(data, aes(x = time_grid, y = cond_S_ode)) +
+    geom_line(color = "#56B4E9") +
+    labs(title = "Condition number: S_ode",
+         x = "Time",
+         y = "Condition number") +
+    theme_minimal()
+  
+  # Plot for cond_P_X
+  p3 <- ggplot(data, aes(x = time_grid, y = cond_P_X)) +
+    geom_line(color = "#009E73") +
+    labs(title = "Condition number: P_X",
+         x = "Time",
+         y = "Condition number") +
+    theme_minimal()
+  
+  # Plot for cond_P_U
+  p4 <- ggplot(data, aes(x = time_grid, y = cond_P_U)) +
+    geom_line(color = "#F0E442") +
+    labs(title = "Condition number: P_U",
+         x = "Time",
+         y = "Condition number") +
+    theme_minimal()
+  
+  res <- list(p1, p2, p3, p4)
+  
+  return(res)
 }

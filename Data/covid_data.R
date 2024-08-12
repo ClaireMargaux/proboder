@@ -3,7 +3,7 @@
 ################################
 
 directory <- "~/Documents/GitHub/proboder/Data/data_covid_dashboard/sources-csv/data/" # directory of data
-region <- 'GE' # 'BE' or 'GE' available (if 'real' data selected)
+region <- 'BE' # 'BE' or 'GE' available (if 'real' data selected)
 daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly' (if 'real' data selected)
 
 # Import dataset.

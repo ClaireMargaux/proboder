@@ -12,6 +12,8 @@ output:
 knitr::opts_chunk$set(echo = TRUE, fig.width=8, fig.height=6)
 ```
 
+## Import functions
+
 ```{r, echo=FALSE, include=FALSE}
 # Set source directory
 source_directory <- '~/Documents/GitHub/proboder/Functions/'
@@ -22,13 +24,14 @@ source(file.path(source_directory, 'inference.R'))
 source(file.path(source_directory, 'processing_saving_loading.R'))
 source(file.path(source_directory, 'scoring.R'))
 source(file.path(source_directory, 'plotting.R'))
-source(file.path(source_directory, 'random_search.R'))
 
 # Load or install necessary packages
 load_required_packages()
 ```
 
-## Test A
+#-------------------------------------------------------------------------------
+
+## Test Example
 
 30 days.
 
@@ -42,8 +45,8 @@ load_required_packages()
 # Choose data to be imported
 region <- 'GE' # 'BE' or 'GE' available 
 daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly'
-
-directory_data <- "~/Documents/GitHub/proboder/Data/real" # directory of data
+directory_data <- 
+  "~/Documents/GitHub/proboder/Data/real" # directory of data
 
 # Import data
 data <- load_data(region = region,
@@ -52,16 +55,20 @@ data <- load_data(region = region,
 obs_with_noise <- data$obs
 pop <- data$population
 
-# Sanity check.
-head(obs_with_noise)
-
-# Take only 30 first days.
+# Take only first 30 days
 tmax <- 30
 obs_to_use <- obs_with_noise[1:tmax,]
 
-# --------------
-# Initialization
-# --------------
+# Visualisation
+(real_compartments <- plotting_real_data(obs = obs_to_use))
+```
+
+#### Perform inference
+
+```{r, fig.width=8, fig.height=6}
+# ---------
+# Inference
+# ---------
 
 model <- 'SEIR' # model to be simulated 
 
@@ -76,37 +83,23 @@ if (model == 'SEIRD') {
   eta <- 0
 }
 
-# -------------
-# Visualization
-# -------------
-
-(real_compartments <- plotting_real_data(obs = obs_to_use))
-```
-
-#### Perform inference
-
-```{r, fig.width=8, fig.height=6}
-# ------------------------
-# Inference
-# ------------------------
-
-noise <- 10 # noise of observations
-l <- 12 # lengthscale
-noise_wiener_X <- 2 # noise of the Wiener process associated with X
-noise_wiener_U <- 0.101 # noise of the Wiener process associated with U
+noise_obs <- 10 # noise of observations
+l <- 138 # lengthscale
+noise_wiener_X <- 1 # noise of the Wiener process associated with X
+noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
-jit <- 0.1 # value for jitter on innovation covariance
-clip_X <- 1 # value to clip variance of X
-clip_U <- 0.01 # value to clip variance of U
+jit <- 1 # value for jitter on innovation covariance
+clip_X <- 10 # value to clip variance of X
+clip_U <- 0.1 # value to clip variance of U
 
 # Initialize
 initial_params <-
     initialization(model = model, obs = obs_to_use,
                    beta0 = beta0, beta0prime = beta0prime,
                    lambda = lambda, gamma = gamma, eta = eta,
-                   l = l, scale = 1, noise_obs = noise,
-                   noise_X = sqrt(noise), noise_U = 0.01,
+                   l = l, scale = 1, noise_obs = noise_obs,
+                   noise_X = sqrt(noise_obs), noise_U = 0.1,
                    noise_wiener_X = noise_wiener_X, 
                    noise_wiener_U = noise_wiener_U,
                    pop = pop,
@@ -126,19 +119,29 @@ inference_results <- inference(model = model,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
-processed_data <- process_data(inference_results,grids)
+processed_data <- process_data(inference_results = inference_results,
+                               grids = grids,
+                               model = model,
+                               pop = pop, 
+                               lambda = lambda, 
+                               gamma = gamma, 
+                               eta = eta)
 U_plot <- processed_data$U_plot
 X_plot <- processed_data$X_plot
+R_plot <- processed_data$R_plot
 
 # Plot compartment counts inferred from real data
 (compartments <- 
-  plot_compartments_real(obs = obs_to_use, 
-                         X_plot = X_plot))
+    plot_compartments_real(
+      obs = obs_to_use, 
+      X_plot = X_plot))
 
 # Plot compartment counts separately
 plots_sep <- 
-  plot_compartments_separately_real(obs = obs_to_use,
-                                    X_plot = X_plot)
+  plot_compartments_separately_real(
+    obs = obs_to_use,
+    X_plot = X_plot)
+
 num_plots <- length(plots_sep)
 invisible(grid_plots_sep <- grid.arrange(
     grobs = plots_sep,
@@ -146,31 +149,334 @@ invisible(grid_plots_sep <- grid.arrange(
     nrow = ceiling(num_plots/2)))
 
 # Plot transmission rate with 95% confidence interval
-(contact_rate_with_CI <- plot_contact_rate_with_CI(U_plot = U_plot, 
-                          df_beta = NULL,
-                          latency_rate = lambda, 
-                          recovery_rate = gamma, 
-                          fatality_rate = eta, 
-                          lengthscale = l))
+(transmission_rate_with_CI <- 
+    plot_transmission_rate_with_CI(
+      U_plot = U_plot, 
+      latency_rate = lambda, 
+      recovery_rate = gamma, 
+      fatality_rate = eta, 
+      lengthscale = l))
+
+# Plot reproduction number with approx. 95% confidence interval
+(reproduction_number_with_CI <- 
+    plot_reproduction_number_with_CI(
+      R_plot = R_plot, 
+      latency_rate = lambda, 
+      recovery_rate = gamma, 
+      fatality_rate = eta, 
+      lengthscale = l))
 ```
 
 --------------------------------------------------------------------------------
 
+
+
+## Test A
+
+100 days.
+
+#### Import data
+
+```{r, fig.width=8, fig.height=6}
+# ------
+# Import
+# ------
+
+# Choose data to be imported
+region <- 'GE' # 'BE' or 'GE' available 
+daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly'
+directory_data <- 
+  "~/Documents/GitHub/proboder/Data/real" # directory of data
+
+# Import data
+data <- load_data(region = region,
+                  daily_or_weekly = daily_or_weekly,
+                  directory_data = directory_data)
+obs_with_noise <- data$obs
+pop <- data$population
+
+# Take only first 100 days
+tmax <- 100
+obs_to_use <- obs_with_noise[1:tmax,]
+
+# Visualisation
+(real_compartments <- plotting_real_data(obs = obs_to_use))
+```
+
+#### Perform inference
+
+```{r, fig.width=8, fig.height=6}
+# ---------
+# Inference
+# ---------
+
+model <- 'SEIR' # model to be simulated 
+
+steps <- 1 # steps for time grid
+max_time <- tmax # max time for time grid
+
+lambda <- 1/(2.6) # latency rate, ref value 1/(2.6)
+gamma <- 1/(2.6) # recovery rate, ref value 1/(2.6)
+if (model == 'SEIRD') {
+  eta <- 0.024*(1/15) # fatality rate, ref value 0.024*(1/15)
+} else if (model == 'SEIR') {
+  eta <- 0
+}
+
+noise_obs <- 100 # noise of observations
+l <- 5 # lengthscale
+noise_wiener_X <- 1 # noise of the Wiener process associated with X
+noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
+beta0 = 0.8 # starting transmission rate
+beta0prime <- 0 # starting 1st derivative of transmission rate
+jit <- 1 # value for jitter on innovation covariance
+clip_X <- 10 # value to clip variance of X
+clip_U <- 0.1 # value to clip variance of U
+
+# Initialize
+initial_params <-
+    initialization(model = model, obs = obs_to_use,
+                   beta0 = beta0, beta0prime = beta0prime,
+                   lambda = lambda, gamma = gamma, eta = eta,
+                   l = l, scale = 1, noise_obs = noise_obs,
+                   noise_X = sqrt(noise_obs), noise_U = 0.1,
+                   noise_wiener_X = noise_wiener_X, 
+                   noise_wiener_U = noise_wiener_U,
+                   pop = pop,
+                   start_S = NULL, start_E = NULL, 
+                   start_I = NULL, start_R = NULL,
+                   start_D = NULL)
+
+# Generate time grids for inference
+grids <- generate_grid(obs_to_use, num_points_between = 0, daily_or_weekly)
+
+# Run inference
+inference_results <- inference(model = model, 
+                               grids = grids, 
+                               obs = obs_to_use, 
+                               jit = jit, 
+                               clip_X = clip_X, clip_U = clip_U,
+                               initial_params = initial_params)
+
+# Process data for scoring and visualization
+processed_data <- process_data(inference_results = inference_results,
+                               grids = grids,
+                               model = model,
+                               pop = pop, 
+                               lambda = lambda, 
+                               gamma = gamma, 
+                               eta = eta)
+U_plot <- processed_data$U_plot
+X_plot <- processed_data$X_plot
+R_plot <- processed_data$R_plot
+
+# Plot compartment counts inferred from real data
+(compartments <- 
+    plot_compartments_real(
+      obs = obs_to_use, 
+      X_plot = X_plot))
+
+# Plot compartment counts separately
+plots_sep <- 
+  plot_compartments_separately_real(
+    obs = obs_to_use,
+    X_plot = X_plot)
+
+num_plots <- length(plots_sep)
+invisible(grid_plots_sep <- grid.arrange(
+    grobs = plots_sep,
+    ncol = 2,
+    nrow = ceiling(num_plots/2)))
+
+# Plot transmission rate with 95% confidence interval
+(transmission_rate_with_CI <- 
+    plot_transmission_rate_with_CI(
+      U_plot = U_plot, 
+      latency_rate = lambda, 
+      recovery_rate = gamma, 
+      fatality_rate = eta, 
+      lengthscale = l))
+
+# Plot reproduction number with approx. 95% confidence interval
+(reproduction_number_with_CI <- 
+    plot_reproduction_number_with_CI(
+      R_plot = R_plot, 
+      latency_rate = lambda, 
+      recovery_rate = gamma, 
+      fatality_rate = eta, 
+      lengthscale = l))
+```
+
+
+
+
+## Test B
+
+Data from BE.
+
+#### Import data
+
+```{r, fig.width=8, fig.height=6}
+# ------
+# Import
+# ------
+
+# Choose data to be imported
+region <- 'BE' # 'BE' or 'GE' available 
+daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly'
+directory_data <- 
+  "~/Documents/GitHub/proboder/Data/real" # directory of data
+
+# Import data
+data <- load_data(region = region,
+                  daily_or_weekly = daily_or_weekly,
+                  directory_data = directory_data)
+obs_with_noise <- data$obs
+pop <- data$population
+
+# Take only first 100 days
+tmax <- 100
+obs_to_use <- obs_with_noise[1:tmax,]
+
+# Visualisation
+(real_compartments <- plotting_real_data(obs = obs_to_use))
+```
+
+#### Perform inference
+
+```{r, fig.width=8, fig.height=6}
+# ---------
+# Inference
+# ---------
+
+model <- 'SEIR' # model to be simulated 
+
+steps <- 1 # steps for time grid
+max_time <- tmax # max time for time grid
+
+lambda <- 1/(2.6) # latency rate, ref value 1/(2.6)
+gamma <- 1/(2.6) # recovery rate, ref value 1/(2.6)
+if (model == 'SEIRD') {
+  eta <- 0.024*(1/15) # fatality rate, ref value 0.024*(1/15)
+} else if (model == 'SEIR') {
+  eta <- 0
+}
+
+noise_obs <- 100 # noise of observations
+l <- 5 # lengthscale
+noise_wiener_X <- 1 # noise of the Wiener process associated with X
+noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
+beta0 = 0.8 # starting transmission rate
+beta0prime <- 0 # starting 1st derivative of transmission rate
+jit <- 1 # value for jitter on innovation covariance
+clip_X <- 10 # value to clip variance of X
+clip_U <- 0.1 # value to clip variance of U
+
+# Initialize
+initial_params <-
+    initialization(model = model, obs = obs_to_use,
+                   beta0 = beta0, beta0prime = beta0prime,
+                   lambda = lambda, gamma = gamma, eta = eta,
+                   l = l, scale = 1, noise_obs = noise_obs,
+                   noise_X = sqrt(noise_obs), noise_U = 0.1,
+                   noise_wiener_X = noise_wiener_X, 
+                   noise_wiener_U = noise_wiener_U,
+                   pop = pop,
+                   start_S = NULL, start_E = NULL, 
+                   start_I = NULL, start_R = NULL,
+                   start_D = NULL)
+
+# Generate time grids for inference
+grids <- generate_grid(obs_to_use, num_points_between = 0, daily_or_weekly)
+
+# Run inference
+inference_results <- inference(model = model, 
+                               grids = grids, 
+                               obs = obs_to_use, 
+                               jit = jit, 
+                               clip_X = clip_X, clip_U = clip_U,
+                               initial_params = initial_params)
+
+# Process data for scoring and visualization
+processed_data <- process_data(inference_results = inference_results,
+                               grids = grids,
+                               model = model,
+                               pop = pop, 
+                               lambda = lambda, 
+                               gamma = gamma, 
+                               eta = eta)
+U_plot <- processed_data$U_plot
+X_plot <- processed_data$X_plot
+R_plot <- processed_data$R_plot
+
+# Plot compartment counts inferred from real data
+(compartments <- 
+    plot_compartments_real(
+      obs = obs_to_use, 
+      X_plot = X_plot))
+
+# Plot compartment counts separately
+plots_sep <- 
+  plot_compartments_separately_real(
+    obs = obs_to_use,
+    X_plot = X_plot)
+
+num_plots <- length(plots_sep)
+invisible(grid_plots_sep <- grid.arrange(
+    grobs = plots_sep,
+    ncol = 2,
+    nrow = ceiling(num_plots/2)))
+
+# Plot transmission rate with 95% confidence interval
+(transmission_rate_with_CI <- 
+    plot_transmission_rate_with_CI(
+      U_plot = U_plot, 
+      latency_rate = lambda, 
+      recovery_rate = gamma, 
+      fatality_rate = eta, 
+      lengthscale = l))
+
+# Plot reproduction number with approx. 95% confidence interval
+(reproduction_number_with_CI <- 
+    plot_reproduction_number_with_CI(
+      R_plot = R_plot, 
+      latency_rate = lambda, 
+      recovery_rate = gamma, 
+      fatality_rate = eta, 
+      lengthscale = l))
+```
+
+
+
+#-------------------------------------------------------------------------------
+
 ## Store data
 
 ```{r}
-# If wished, the processed data can be stored
+# -------------
+# Store results
+# -------------
+
+# Every argument except directory is optional. If not available: set NULL.
+
 directory_save <- '~/Documents/GitHub/proboder/Results/'
 if (TRUE) { # Set TRUE to save
-  save_processed_data(inference_results = inference_results, 
-                      processed_data = processed_data, 
-                      directory = directory_save,
-                      real_compartments = real_compartments, 
-                      compartments = compartments,
-                      contact_rate_with_CI = contact_rate_with_CI,
-                      grid_plots_sep = grid_plots_sep)
+  save_processed_data(
+    directory = directory_save,
+    folder_name = 'testB',
+    # Data
+    inference_results = inference_results, 
+    processed_data = processed_data, 
+    # Plots
+    real_compartments = real_compartments, 
+    compartments = compartments,
+    transmission_rate_with_CI = transmission_rate_with_CI,
+    reproduction_number_with_CI = reproduction_number_with_CI,
+    grid_plots_sep = grid_plots_sep,
+    # Size
+    plot_width = 8,
+    plot_height = 6)
 }
 
-# To store the table as a png file, use the manual export option from the viewer.
-# Save in size 400x200.
+# To store a table as a png file, use the manual export option from the viewer.
 ```

@@ -278,7 +278,9 @@ update_of_observations <- function(m, P, y, H, R) {
   m_out <- m + K %*% v # updated mean
   P_out <- P - K %*% S %*% t(K) # updated covariance
   
-  out <- list(m_out,P_out)
+  cond_S_obs <- kappa(S) # condition number
+  
+  out <- list(m_out = m_out, P_out = P_out, cond_S_obs = cond_S_obs)
   
   return(out)
 }
@@ -318,8 +320,10 @@ update_of_states <- function(m, P, h, J, jit) {
   K <- P %*% t(J) %*% S_inv # Kalman gain
   m_out <- m + K %*% v # updated mean
   P_out <- P - K %*% S %*% t(K) # updated covariance
-
-  return(list(m_out = m_out, P_out = P_out))
+  
+  cond_S_ode <- kappa(S) # condition number
+  
+  return(list(m_out = m_out, P_out = P_out, cond_S_ode = cond_S_ode))
 }
 
 #' Combine covariance matrices P_X and P_U
@@ -359,14 +363,15 @@ matrix_P <- function(P_X, P_U) {
 #' @param grids List of time grids for inference.
 #' @param obs Data frame, contains the dates and the compartment counts.
 #' @param jit Numeric, value to add as jitter to the innovation covariance (optional, default 0.001).
-#' @param clip_X Numeric, value to clip (from below) the variance of X (optional, default 10).
-#' @param clip_U Numeric, value to clip (from below) the variance of U (optional, default 0.1).
+#' @param clip_X Numeric, value to clip (from below) the variance of X (optional).
+#' @param clip_U Numeric, value to clip (from below) the variance of U (optional).
 #' @param initial_params List of initial parameters obtained from the initialization function.
 #'
 #' @return A list with the inferred values of X, U, P_X, and P_U.
 #' @export
 inference <- function(model, grids, obs, 
-                      jit = 0.001, clip_X = 10, clip_U = 0.1,
+                      jit = 0.001, 
+                      clip_X = NULL, clip_U = NULL,
                       initial_params){
   # Arguments:
   #   model: String, type of model to be used ('SEIRD' or 'SEIR' available).
@@ -410,18 +415,19 @@ inference <- function(model, grids, obs,
   A_U <- as.matrix(trans_U[[1]])
   Q_U <- as.matrix(trans_U[[2]])
   
-  # Create lists to store inferred values
+  # Create lists to store inferred values and condition numbers
   X_values <- matrix(data = NA, nrow = length(X), ncol = length(time_grid))
   U_values <- matrix(data = NA, nrow = length(U), ncol = length(time_grid))
   P_X_values <- array(data = NA, dim = c(length(X), length(X), length(time_grid)))
   P_U_values <- array(data = NA, dim = c(length(U), length(U), length(time_grid)))
+  cond_numbers <- matrix(data = NA, nrow = 4, ncol = (length(time_grid)-1))
   
   # Initialize these lists
   X_values[, 1] <- X
   P_X_values[, , 1] <- P_X
   U_values[, 1] <- U
   P_U_values[, , 1] <- P_U
-  
+
   # Get vector indicating which compartments have been observed
   get_observation_vector <- function(obs_data) {
     ind <- c()
@@ -486,6 +492,9 @@ inference <- function(model, grids, obs,
       }
     }
     
+    # Condition number
+    cond_S_obs <- updated_obs[[3]]
+    
     # Update of states if required at the current time point
     if (any(ode_grid == time_grid[i])) {
       m <- c(X_pred, U_pred)
@@ -510,19 +519,32 @@ inference <- function(model, grids, obs,
         P_U_pred <- as.matrix(updated_states[[2]][13:14, 13:14])
       }
     }
+    # Condition number
+    cond_S_ode <- updated_states[[3]]
     
     # Avoid overconfidence (clipping)
-    diag(P_X_pred)[diag(P_X_pred) < clip_X] <- clip_X
-    diag(P_U_pred)[diag(P_U_pred) < clip_U] <- clip_U
+    if(!is.null(clip_X)){
+      diag(P_X_pred)[diag(P_X_pred) < clip_X] <- clip_X
+    }
+    if(!is.null(clip_U)){
+      diag(P_U_pred)[diag(P_U_pred) < clip_U] <- clip_U
+    }
+    
+    # Compute condition numbers
+    cond_P_X <- kappa(P_X_pred)
+    cond_P_U <- kappa(P_U_pred)
     
     # Store current values and covariance matrices
     X_values[, i] <- X_pred
     U_values[, i] <- U_pred
     P_X_values[, , i] <- P_X_pred
     P_U_values[, , i] <- P_U_pred
+    cond_numbers[, (i-1)] <- c(cond_S_obs, cond_S_ode, cond_P_X, cond_P_U)
     
   }
   
   # Return inferred values
-  list(X_values = X_values, U_values = U_values, P_X_values = P_X_values, P_U_values = P_U_values)
+  list(X_values = X_values, U_values = U_values, 
+       P_X_values = P_X_values, P_U_values = P_U_values, 
+       cond_numbers = cond_numbers)
 }

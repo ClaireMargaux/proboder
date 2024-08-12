@@ -12,6 +12,8 @@
 #' @param eta Fatality rate.
 #' @param pop Population size.
 #' @param beta0 Initial contact rate value. 
+#' @param clip_X Clip on the variance of X.
+#' @param clip_U Clip on the variance of U.
 #' @param seed Seed for random number generation. Default is 5.
 #' @param num_param_sets Number of parameter sets to sample.
 #' @param seq_l Sequence of values for the `l` hyperparameter. 
@@ -19,22 +21,19 @@
 #' @param seq_wiener_U Sequence of values for the `noise_wiener_U` hyperparameter.
 #' @param seq_beta0prime Sequence of values for the `beta0prime` hyperparameter. 
 #' @param seq_jit Sequence of values for the `jit` hyperparameter. 
-#' @param seq_clip_X Sequence of values for the `clip_X` hyperparameter. 
-#' @param seq_clip_U Sequence of values for the `clip_U` hyperparameter. 
 #'
 #' @return A data frame containing the summary of results for each sampled set of hyperparameters. The data frame includes the hyperparameter values, mean and median scores for SPE, NLPD, and CRPS.
 #' @export
-run_random_search <- function(model, obs_to_use, df_beta, noise, 
+run_random_search <- function(model, obs_to_use, df_beta, noise_obs, 
                               lambda, gamma, eta, pop, beta0,
+                              clip_X, clip_U,
                               seed = 5, 
                               num_param_sets, 
                               seq_l, 
                               seq_wiener_X, 
                               seq_wiener_U, 
                               seq_beta0prime,
-                              seq_jit,
-                              seq_clip_X,
-                              seq_clip_U) {
+                              seq_jit) {
  
   # Start counting computation time
   tic("Duration of the whole workflow")
@@ -44,9 +43,7 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
     noise_wiener_X = seq_wiener_X,
     noise_wiener_U = seq_wiener_U,
     beta0prime = seq_beta0prime,
-    jit = seq_jit,
-    clip_X = seq_clip_X,
-    clip_U = seq_clip_U
+    jit = seq_jit
   )
   
   set.seed(seed) 
@@ -86,8 +83,8 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
       eta = eta,
       l = param_i$l, 
       scale = 1, 
-      noise_obs = noise,
-      noise_X = sqrt(noise), 
+      noise_obs = noise_obs,
+      noise_X = sqrt(noise_obs), 
       noise_U = 0.01,
       noise_wiener_X = param_i$noise_wiener_X, 
       noise_wiener_U = param_i$noise_wiener_U,
@@ -101,8 +98,8 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
                 grids = grids, 
                 obs = obs_to_use, 
                 jit = param_i$jit,
-                clip_X = param_i$clip_X,
-                clip_U = param_i$clip_U,
+                clip_X = clip_X,
+                clip_U = clip_U,
                 initial_params = initial_params)
     },
     warning = function(w) {
@@ -120,8 +117,13 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
     # Check if inference was successful
     if (!is.null(inference_results)) {
       # Process data for scoring and visualization
-      processed_data <- process_data(inference_results = inference_results, 
-                                     grids = grids)
+      processed_data <- process_data(inference_results = inference_results,
+                                     grids = grids,
+                                     model = model,
+                                     pop = pop, 
+                                     lambda = lambda, 
+                                     gamma = gamma, 
+                                     eta = eta)
       U_plot <- processed_data$U_plot
       
       # Compute the different scores
@@ -169,8 +171,6 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
     noise_wiener_U = params[, 3],
     beta0prime = params[, 4],
     jit = params[, 5],
-    clip_X = params[, 6],
-    clip_U = params[, 7],
     mean_SPE = mean_SPE,
     median_SPE = median_SPE,
     mean_NLPD = mean_NLPD,
@@ -194,15 +194,14 @@ run_random_search <- function(model, obs_to_use, df_beta, noise,
 #' Each row represents a different set of hyperparameters and contains columns for the mean and median
 #' scores (`mean_SPE`, `mean_NLPD`, `mean_CRPS`, `median_SPE`, `median_NLPD`, `median_CRPS`).
 #' @param parameters_to_plot A character vector of parameter names for which the mean and median scores
-#' should be plotted. Default is `c('l', 'noise_wiener_X', 'noise_wiener_U', 'beta0prime')`.
+#' should be plotted. Default is `c('l', 'noise_wiener_X', 'noise_wiener_U', 'beta0prime', 'jit')`.
 #' @return A list containing two lists: `mean_plots` and `median_plots`. Each list contains ggplot objects
 #' for the specified parameters.
 #' @export
 plot_scores <- function(results_summary, 
                         parameters_to_plot = 
                           c('l', 'noise_wiener_X', 
-                            'noise_wiener_U', 'beta0prime',
-                            'jit', 'clip_X', 'clip_U')) {
+                            'noise_wiener_U', 'beta0prime', 'jit')) {
   
   # Function to plot mean scores for a given parameter
   plot_mean_scores <- function(df, parameter) {
@@ -279,9 +278,15 @@ find_best_hyperparameters <- function(results_summary) {
       best_params <- best_two[1, ]
     } else {
       # If no sets minimize at least two scores, prioritize minimal CRPS
-      best_params <- best_crps
+      best_params <- best_spe
     }
   }
   
-  return(best_params)
+  # Generate nice table using knitr and kableExtra
+  table <- kable(best_params, align = "c", caption = "Random Search Results")
+  best_params_table <- kableExtra::kable_styling(table, 
+                                                   bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                                                   full_width = FALSE)
+  
+  return(best_params_table)
 }
