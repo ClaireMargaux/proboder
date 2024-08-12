@@ -14,6 +14,8 @@
 #' @param beta0 Initial contact rate value. 
 #' @param clip_X Clip on the variance of X.
 #' @param clip_U Clip on the variance of U.
+#' @param jit_X Jitter on the variance of X.
+#' @param jit_U Jitter on the variance of U.
 #' @param seed Seed for random number generation. Default is 5.
 #' @param num_param_sets Number of parameter sets to sample.
 #' @param seq_l Sequence of values for the `l` hyperparameter. 
@@ -27,6 +29,7 @@
 run_random_search <- function(model, obs_to_use, df_beta, noise_obs, 
                               lambda, gamma, eta, pop, beta0,
                               clip_X, clip_U,
+                              jit_X, jit_U,
                               seed = 5, 
                               num_param_sets, 
                               seq_l, 
@@ -100,6 +103,8 @@ run_random_search <- function(model, obs_to_use, df_beta, noise_obs,
                 jit = param_i$jit,
                 clip_X = clip_X,
                 clip_U = clip_U,
+                jit_X = jit_X,
+                jit_U = jit_U,
                 initial_params = initial_params)
     },
     warning = function(w) {
@@ -188,46 +193,106 @@ run_random_search <- function(model, obs_to_use, df_beta, noise_obs,
 #' Plot Mean and Median Scores for Hyperparameter Search
 #'
 #' This function generates and returns ggplot objects for visualizing the mean and median scores
-#' (SPE, NLPD, CRPS) across different hyperparameters.
+#' (SPE, NLPD, CRPS) across different hyperparameters. The function can optionally aggregate scores
+#' for each hyperparameter value or plot raw scores with NA values removed.
 #'
 #' @param results_summary A data frame containing the summary of results from the hyperparameter search.
 #' Each row represents a different set of hyperparameters and contains columns for the mean and median
 #' scores (`mean_SPE`, `mean_NLPD`, `mean_CRPS`, `median_SPE`, `median_NLPD`, `median_CRPS`).
 #' @param parameters_to_plot A character vector of parameter names for which the mean and median scores
 #' should be plotted. Default is `c('l', 'noise_wiener_X', 'noise_wiener_U', 'beta0prime', 'jit')`.
+#' @param aggregate A logical value indicating whether to aggregate scores by the parameter values.
+#' If `TRUE`, scores are aggregated by taking the mean for each parameter value. If `FALSE`, 
+#' raw scores with NA values removed are plotted. Default is `FALSE`.
 #' @return A list containing two lists: `mean_plots` and `median_plots`. Each list contains ggplot objects
-#' for the specified parameters.
+#' for the specified parameters. The `mean_plots` list contains plots of mean scores, and the `median_plots`
+#' list contains plots of median scores. If `aggregate` is `TRUE`, the plots reflect aggregated scores; 
+#' otherwise, they reflect raw scores with NA values removed.
 #' @export
 plot_scores <- function(results_summary, 
                         parameters_to_plot = 
                           c('l', 'noise_wiener_X', 
-                            'noise_wiener_U', 'beta0prime', 'jit')) {
+                            'noise_wiener_U', 'beta0prime', 'jit'),
+                        aggregate = FALSE) {
+  
+  # Define the LaTeX expressions
+  params_expressions <- c(
+    "\u2113",  # Unicode for ell
+    "$Q_X$",
+    "$Q_U$",
+    "$m_{U^{(1)}}$",
+    "jit"
+  )
+  
+  # Create a named vector for easier lookup
+  names(params_expressions) <- parameters_to_plot
+  
+  # Define color scale
+  color_scale <- scale_color_manual(values = c("SPE" = "#E69F00", "NLPD" = "#56B4E9", "CRPS" = "#009E73"), 
+                                    name = "Score")
+  
+  # Function to aggregate data
+  aggregate_data_mean <- function(df, parameter) {
+    df %>%
+      group_by(across(all_of(parameter))) %>%  # Group by the parameter
+      summarize(
+        mean_SPE = mean(mean_SPE, na.rm = TRUE),
+        mean_NLPD = mean(mean_NLPD, na.rm = TRUE),
+        mean_CRPS = mean(mean_CRPS, na.rm = TRUE),
+        .groups = 'drop'  # Drop the grouping after summarizing
+      )
+  }
+  
+  aggregate_data_median <- function(df, parameter) {
+    df %>%
+      group_by(across(all_of(parameter))) %>%  # Group by the parameter
+      summarize(
+        median_SPE = median(median_SPE, na.rm = TRUE),
+        median_NLPD = median(median_NLPD, na.rm = TRUE),
+        median_CRPS = median(median_CRPS, na.rm = TRUE),
+        .groups = 'drop'  # Drop the grouping after summarizing
+      )
+  }
   
   # Function to plot mean scores for a given parameter
   plot_mean_scores <- function(df, parameter) {
-    df %>%
-      filter(!is.na(mean_SPE) & !is.na(mean_NLPD) & !is.na(mean_CRPS)) %>%  # Remove NA values
-      ggplot(aes_string(x = parameter)) +
+    if (aggregate) {
+      aggregated_df <- aggregate_data_mean(df, parameter)
+    } else {
+      aggregated_df <- df %>%
+        filter(!is.na(mean_SPE) & !is.na(mean_NLPD) & !is.na(mean_CRPS))
+    }
+    
+    ggplot(aggregated_df, aes_string(x = parameter)) +
       geom_point(aes(y = mean_SPE, color = "SPE")) +
       geom_point(aes(y = mean_NLPD, color = "NLPD")) +
       geom_point(aes(y = mean_CRPS, color = "CRPS")) +
-      labs(title = paste("Mean scores for parameter\n", parameter), x = parameter, y = "Mean score",
+      labs(title = TeX(paste("Mean scores for", params_expressions[parameter])), 
+           x = TeX(params_expressions[parameter]), 
+           y = "Mean score",
            color = "Score") +
-      scale_color_manual(values = c("SPE" = "#E69F00", "NLPD" = "#56B4E9", "CRPS" = "#009E73")) +
+      color_scale +  # Use predefined color scale
       theme_minimal()
   }
   
   # Function to plot median scores for a given parameter
   plot_median_scores <- function(df, parameter) {
-    df %>%
-      filter(!is.na(median_SPE) & !is.na(median_NLPD) & !is.na(median_CRPS)) %>%  # Remove NA values
-      ggplot(aes_string(x = parameter)) +
+    if (aggregate) {
+      aggregated_df <- aggregate_data_median(df, parameter)
+    } else {
+      aggregated_df <- df %>%
+        filter(!is.na(median_SPE) & !is.na(median_NLPD) & !is.na(median_CRPS))
+    }
+    
+    ggplot(aggregated_df, aes_string(x = parameter)) +
       geom_point(aes(y = median_SPE, color = "SPE")) +
       geom_point(aes(y = median_NLPD, color = "NLPD")) +
       geom_point(aes(y = median_CRPS, color = "CRPS")) +
-      labs(title = paste("Median scores for parameter\n", parameter), x = parameter, y = "Median score",
+      labs(title = TeX(paste("Median scores for", params_expressions[parameter])), 
+           x = TeX(params_expressions[parameter]), 
+           y = "Median score",
            color = "Score") +
-      scale_color_manual(values = c("SPE" = "#E69F00", "NLPD" = "#56B4E9", "CRPS" = "#009E73")) +
+      color_scale +  # Use predefined color scale
       theme_minimal()
   }
   

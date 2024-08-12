@@ -11,6 +11,7 @@ load_required_packages <- function() {
     "Matrix",
     "numDeriv",
     "matrixcalc",
+    "latex2exp",
     "knitr",
     "kableExtra",
     "ggplot2",

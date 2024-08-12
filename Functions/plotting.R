@@ -83,7 +83,7 @@ plot_reproduction_number_with_CI <- function(R_plot,
       geom_ribbon(data = R_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
       geom_line(data = df_R, aes(x = t, y = R, color = "Simulated reproduction number"), linetype = "dashed") +
       geom_line(data = R_plot, aes(x = t, y = R, color = "Inferred reproduction number"), linewidth = 1) +
-      labs(x = "Time", y = "Reproduction number", title = "Reproduction number with 95%-confidence interval",
+      labs(x = "Time", y = "Reproduction number", title = "Reproduction number with approx. 95%-confidence interval",
            color = "Legend") +  
       scale_color_manual(values = c("Inferred reproduction number" = "#0072B2", "Simulated reproduction number" = "#E69F00"),
                          labels = c("Inferred reproduction number", "Simulated reproduction number"), name = "Lines") + 
@@ -103,7 +103,7 @@ plot_reproduction_number_with_CI <- function(R_plot,
     ggplot() +
       geom_ribbon(data = R_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
       geom_line(data = R_plot, aes(x = t, y = R, color = "Inferred reproduction number"), linewidth = 1) +
-      labs(x = "Time", y = "Reproduction number", title = "Reproduction number with 95%-confidence interval",
+      labs(x = "Time", y = "Reproduction number", title = "Reproduction number with approx. 95%-confidence interval",
            color = "Legend") +  
       scale_color_manual(values = c("Inferred reproduction number" = "#0072B2"),
                          labels = c("Inferred reproduction number"), name = "Lines") + 
@@ -323,6 +323,138 @@ plot_compartments <- function(model,
     
   }
 
+  return(p)  
+}
+
+#' Plot inferred compartment counts from simulated data.
+#'
+#' This function generates a plot of the observed and inferred compartment counts,
+#' excluding the S compartment and without log scaling.
+#'
+#' @param model String, type of model to be used ('SEIRD' or 'SEIR' available).
+#' @param obs Data frame containing the simulated compartment counts.
+#' @param obs_with_noise Data frame containing the noisy compartment counts (optional).
+#' @param X_plot Data frame containing the inferred compartment counts.
+#' @return A ggplot object displaying the simulated, noisy, and inferred compartment counts.
+#' @export
+plot_compartments_except_S <- function(model,
+                              obs, 
+                              obs_with_noise = NULL, 
+                              X_plot) {
+  
+  plot_title <- "Compartments counts (excluding S)"
+  
+  cols_SEIRD <- c(E = "#56B4E9", I = "#009E73", R = "#F0E442", D = "#0072B2")
+  labels_SEIRD <- c(E = "Exposed", I = "Infected", R = "Recovered", D = "Deceased")
+  
+  cols_SEIR <- c(E = "#56B4E9", I = "#009E73", R = "#F0E442")
+  labels_SEIR <- c(E = "Exposed", I = "Infected", R = "Recovered")
+  
+  if (model == 'SEIRD') {
+    
+    if (!is.null(obs_with_noise)) { # obs_with_noise exists
+      
+      p <- ggplot() +
+        geom_line(data = obs, aes(x = t, y = E, color = "E", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = obs, aes(x = t, y = I, color = "I", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = obs, aes(x = t, y = R, color = "R", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = obs, aes(x = t, y = D, color = "D", linetype = "Data"), linewidth = 0.3) +
+        geom_point(data = obs_with_noise, aes(x = t, y = E, color = "E", shape = "Noisy data")) +
+        geom_point(data = obs_with_noise, aes(x = t, y = I, color = "I", shape = "Noisy data")) +
+        geom_point(data = obs_with_noise, aes(x = t, y = R, color = "R", shape = "Noisy data")) +
+        geom_point(data = obs_with_noise, aes(x = t, y = D, color = "D", shape = "Noisy data")) +
+        geom_line(data = X_plot, aes(x = t, y = E, color = "E", linetype = "Inferred"), linewidth = 1) +
+        geom_line(data = X_plot, aes(x = t, y = I, color = "I", linetype = "Inferred"), linewidth = 1) +
+        geom_line(data = X_plot, aes(x = t, y = R, color = "R", linetype = "Inferred"), linewidth = 1) +
+        geom_line(data = X_plot, aes(x = t, y = D, color = "D", linetype = "Inferred"), linewidth = 1) +
+        labs(x = "Time", y = "Compartment counts", title = plot_title) +
+        theme_minimal() +
+        scale_color_manual(values = cols_SEIRD,
+                           labels = labels_SEIRD,
+                           name = "Compartments") +
+        scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
+                              name = "Lines",
+                              labels = c("Simulated data", "Inferred data"),
+                              guide = guide_legend(override.aes = list(color = "grey"))) +
+        scale_shape_manual(values = c("Noisy data" = 1),
+                           name = "Points",
+                           labels = c("Noisy data"),
+                           guide = guide_legend(override.aes = list(color = "grey")))
+      
+    } else { # obs_with_noise does not exist
+      
+      p <- ggplot() +
+        geom_line(data = obs, aes(x = t, y = E, color = "E", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = obs, aes(x = t, y = I, color = "I", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = obs, aes(x = t, y = R, color = "R", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = obs, aes(x = t, y = D, color = "D", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = X_plot, aes(x = t, y = E, color = "E", linetype = "Inferred"), linewidth = 1) +
+        geom_line(data = X_plot, aes(x = t, y = I, color = "I", linetype = "Inferred"), linewidth = 1) +
+        geom_line(data = X_plot, aes(x = t, y = R, color = "R", linetype = "Inferred"), linewidth = 1) +
+        geom_line(data = X_plot, aes(x = t, y = D, color = "D", linetype = "Inferred"), linewidth = 1) +
+        labs(x = "Time", y = "Compartment counts", title = plot_title) +
+        theme_minimal() +
+        scale_color_manual(values = cols_SEIRD,
+                           labels = labels_SEIRD,
+                           name = "Compartments") +
+        scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
+                              name = "Lines",
+                              labels = c("Simulated data", "Inferred data"),
+                              guide = guide_legend(override.aes = list(color = "grey")))
+      
+    }
+    
+  } else if (model == 'SEIR') {
+    
+    if (!is.null(obs_with_noise)) { # obs_with_noise exists
+      
+      p <- ggplot() +
+        geom_line(data = obs, aes(x = t, y = E, color = "E", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = obs, aes(x = t, y = I, color = "I", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = obs, aes(x = t, y = R, color = "R", linetype = "Data"), linewidth = 0.3) +
+        geom_point(data = obs_with_noise, aes(x = t, y = E, color = "E", shape = "Noisy data")) +
+        geom_point(data = obs_with_noise, aes(x = t, y = I, color = "I", shape = "Noisy data")) +
+        geom_point(data = obs_with_noise, aes(x = t, y = R, color = "R", shape = "Noisy data")) +
+        geom_line(data = X_plot, aes(x = t, y = E, color = "E", linetype = "Inferred"), linewidth = 1) +
+        geom_line(data = X_plot, aes(x = t, y = I, color = "I", linetype = "Inferred"), linewidth = 1) +
+        geom_line(data = X_plot, aes(x = t, y = R, color = "R", linetype = "Inferred"), linewidth = 1) +
+        labs(x = "Time", y = "Compartment counts", title = plot_title) +
+        theme_minimal() +
+        scale_color_manual(values = cols_SEIR,
+                           labels = labels_SEIR,
+                           name = "Compartments") +
+        scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
+                              name = "Lines",
+                              labels = c("Simulated data", "Inferred data"),
+                              guide = guide_legend(override.aes = list(color = "grey"))) +
+        scale_shape_manual(values = c("Noisy data" = 1),
+                           name = "Points",
+                           labels = c("Noisy data"),
+                           guide = guide_legend(override.aes = list(color = "grey")))
+      
+    } else { # obs_with_noise does not exist
+      
+      p <- ggplot() +
+        geom_line(data = obs, aes(x = t, y = E, color = "E", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = obs, aes(x = t, y = I, color = "I", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = obs, aes(x = t, y = R, color = "R", linetype = "Data"), linewidth = 0.3) +
+        geom_line(data = X_plot, aes(x = t, y = E, color = "E", linetype = "Inferred"), linewidth = 1) +
+        geom_line(data = X_plot, aes(x = t, y = I, color = "I", linetype = "Inferred"), linewidth = 1) +
+        geom_line(data = X_plot, aes(x = t, y = R, color = "R", linetype = "Inferred"), linewidth = 1) +
+        labs(x = "Time", y = "Compartment counts", title = plot_title) +
+        theme_minimal() +
+        scale_color_manual(values = cols_SEIR,
+                           labels = labels_SEIR,
+                           name = "Compartments") +
+        scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
+                              name = "Lines",
+                              labels = c("Simulated data", "Inferred data"),
+                              guide = guide_legend(override.aes = list(color = "grey")))
+      
+    }
+    
+  }
+  
   return(p)  
 }
 

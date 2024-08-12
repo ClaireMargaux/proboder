@@ -190,10 +190,12 @@ save_processed_data <- function(directory,
                                 processed_data = NULL, 
                                 # Plots
                                 simulated_compartments = NULL,
+                                simulated_compartments_except_S = NULL,
                                 real_compartments = NULL,
                                 simulated_beta = NULL,
                                 simulated_R = NULL,
                                 compartments = NULL,
+                                compartments_except_S = NULL,
                                 transmission_rate_with_CI = NULL,
                                 reproduction_number_with_CI = NULL,
                                 grid_plots_sep = NULL,
@@ -245,6 +247,13 @@ save_processed_data <- function(directory,
            width = plot_width, 
            height = plot_height)
   }
+  if (!is.null(simulated_compartments_except_S)) {
+    ggsave(filename = file.path(new_directory, "simulated_compartments_except_S.png"), 
+           plot = simulated_compartments_except_S, 
+           bg = "white",
+           width = plot_width, 
+           height = plot_height)
+  }
   if (!is.null(real_compartments)) {
     ggsave(filename = file.path(new_directory, "real_compartments.png"), 
            plot = real_compartments, 
@@ -276,6 +285,13 @@ save_processed_data <- function(directory,
   if (!is.null(compartments)) {
     ggsave(filename = file.path(new_directory, "compartments.png"), 
            plot = compartments, 
+           bg = "white",
+           width = plot_width, 
+           height = plot_height)
+  }
+  if (!is.null(compartments_except_S)) {
+    ggsave(filename = file.path(new_directory, "compartments_except_S.png"), 
+           plot = compartments_except_S, 
            bg = "white",
            width = plot_width, 
            height = plot_height)

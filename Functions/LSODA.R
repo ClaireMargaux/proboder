@@ -165,25 +165,43 @@ plotting_simulated_data_lsoda <- function(model, sim,
   cols_SEIR <- c(S = "#E69F00", E = "#56B4E9", I = "#009E73", R = "#F0E442")
   labels_SEIR <- c(S = "Susceptible", E = "Exposed", I = "Infected", R = "Recovered")
   
-  if (!is.null(sim$obs_with_noise)) {
+  if (!is.null(sim$obs_with_noise)) { 
     obs_with_noise <- sim$obs_with_noise
   }
   
   if (model == 'SEIRD') {
     
-    # To avoid warnings
-    if (log == TRUE) {
-      obs <- obs %>%
-        mutate(
-          S = ifelse(S <= 0, 0.001, S),
-          E = ifelse(E <= 0, 0.001, E),
-          I = ifelse(I <= 0, 0.001, I),
-          R = ifelse(R <= 0, 0.001, R),
-          D = ifelse(D <= 0, 0.001, D)
-        )
-    }
-    
     if (is.null(sim$obs_with_noise)) { # No obs with noise
+      
+      # Plot without S compartment and without log scaling
+      simulated_compartments_except_S <- ggplot(obs, aes(x = t)) +
+        geom_line(aes(y = E, color = 'E')) +
+        geom_line(aes(y = I, color = 'I')) +
+        geom_line(aes(y = R, color = 'R')) +
+        geom_line(aes(y = D, color = 'D')) +
+        theme_minimal() +
+        ylab("Compartment counts") +
+        xlab("Time") + 
+        ggtitle("Simulated observations (excluding S)") +
+        scale_color_manual(values = cols_SEIRD[names(cols_SEIRD) != "S"],
+                           labels = labels_SEIRD[names(labels_SEIRD) != "S"], 
+                           name = "Compartments") +
+        guides(color = guide_legend(order = 1)) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Fatality Rate:", round(fatality_rate,4)), hjust = 0, vjust = 1, size = 3)
+      
+      # To avoid warnings
+      if (log == TRUE) {
+        obs <- obs %>%
+          mutate(
+            S = ifelse(S <= 0, 0.001, S),
+            E = ifelse(E <= 0, 0.001, E),
+            I = ifelse(I <= 0, 0.001, I),
+            R = ifelse(R <= 0, 0.001, R),
+            D = ifelse(D <= 0, 0.001, D)
+          )
+      }
       
       # Create the counts plot
       simulated_compartments <- ggplot(obs, aes(x = t)) +
@@ -200,12 +218,38 @@ plotting_simulated_data_lsoda <- function(model, sim,
                            labels = labels_SEIRD, 
                            name = "Compartments") +
         guides(color = guide_legend(order = 1)) +
-        annotate("text", x = min(df_beta$t), y = min(df_beta$beta), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
-        annotate("text", x = min(df_beta$t), y = min(df_beta$beta), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3) +
-        annotate("text", x = min(df_beta$t), y = min(df_beta$beta), label = paste("Fatality Rate:", round(fatality_rate,4)), hjust = 0, vjust = 1, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Fatality Rate:", round(fatality_rate,4)), hjust = 0, vjust = 1, size = 3) +
         if (log) scale_y_continuous(trans = 'log10', name = "log(compartment counts)") else NULL
       
     } else { # Obs with noise exist
+      
+      # Plot without S compartment and without log scaling
+      simulated_compartments_except_S <- ggplot(obs, aes(x = t)) +
+        geom_line(aes(y = E, color = 'E')) +
+        geom_line(aes(y = I, color = 'I')) +
+        geom_line(aes(y = R, color = 'R')) +
+        geom_line(aes(y = D, color = 'D')) +
+        geom_point(data = obs_with_noise, aes(x = t, y = E, color = "E", shape = "Noisy data")) +
+        geom_point(data = obs_with_noise, aes(x = t, y = I, color = "I", shape = "Noisy data")) +
+        geom_point(data = obs_with_noise, aes(x = t, y = R, color = "R", shape = "Noisy data")) +
+        geom_point(data = obs_with_noise, aes(x = t, y = D, color = "D", shape = "Noisy data")) +
+        theme_minimal() +
+        ylab("Compartment counts") +
+        xlab("Time") + 
+        ggtitle("Simulated observations (excluding S)") +
+        scale_color_manual(values = cols_SEIRD[names(cols_SEIRD) != "S"],
+                           labels = labels_SEIRD[names(labels_SEIRD) != "S"], 
+                           name = "Compartments") +
+        scale_shape_manual(values = c("Noisy data" = 1),
+                           name = "Points",
+                           labels = c("Noisy data"),
+                           guide = guide_legend(override.aes = list(color = "grey"))) +
+        guides(color = guide_legend(order = 1)) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Fatality Rate:", round(fatality_rate,4)), hjust = 0, vjust = 1, size = 3)
       
       # To avoid warnings
       if (log == TRUE) {
@@ -247,9 +291,9 @@ plotting_simulated_data_lsoda <- function(model, sim,
                            labels = c("Noisy data"),
                            guide = guide_legend(override.aes = list(color = "grey"))) +
         guides(color = guide_legend(order = 1)) +
-        annotate("text", x = min(df_beta$t), y = min(df_beta$beta), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
-        annotate("text", x = min(df_beta$t), y = min(df_beta$beta), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3) +
-        annotate("text", x = min(df_beta$t), y = min(df_beta$beta), label = paste("Fatality Rate:", round(fatality_rate,4)), hjust = 0, vjust = 1, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Fatality Rate:", round(fatality_rate,4)), hjust = 0, vjust = 1, size = 3) +
         if (log) scale_y_continuous(trans = 'log10', name = "log(compartment counts)") else NULL
       
     }
@@ -257,18 +301,34 @@ plotting_simulated_data_lsoda <- function(model, sim,
   
   if (model == 'SEIR') {
     
-    # To avoid warnings
-    if (log == TRUE) {
-      obs <- obs %>%
-        mutate(
-          S = ifelse(S <= 0, 0.001, S),
-          E = ifelse(E <= 0, 0.001, E),
-          I = ifelse(I <= 0, 0.001, I),
-          R = ifelse(R <= 0, 0.001, R),
-        )
-    }
-    
     if (is.null(sim$obs_with_noise)) { # No obs with noise 
+      
+      # Plot without S compartment and without log scaling
+      simulated_compartments_except_S <- ggplot(obs, aes(x = t)) +
+        geom_line(aes(y = E, color = 'E')) +
+        geom_line(aes(y = I, color = 'I')) +
+        geom_line(aes(y = R, color = 'R')) +
+        theme_minimal() +
+        ylab("Compartment counts") +
+        xlab("Time") + 
+        ggtitle("Simulated observations (excluding S)") +
+        scale_color_manual(values = cols_SEIR[names(cols_SEIR) != "S"],
+                           labels = labels_SEIR[names(labels_SEIR) != "S"], 
+                           name = "Compartments") +
+        guides(color = guide_legend(order = 1)) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3)
+      
+      # To avoid warnings
+      if (log == TRUE) {
+        obs <- obs %>%
+          mutate(
+            S = ifelse(S <= 0, 0.001, S),
+            E = ifelse(E <= 0, 0.001, E),
+            I = ifelse(I <= 0, 0.001, I),
+            R = ifelse(R <= 0, 0.001, R),
+          )
+      }
       
       # Create the counts plot
       simulated_compartments <- ggplot(obs, aes(x = t)) +
@@ -284,11 +344,34 @@ plotting_simulated_data_lsoda <- function(model, sim,
                            labels = labels_SEIR, 
                            name = "Compartments") +
         guides(color = guide_legend(order = 1)) +
-        annotate("text", x = min(df_beta$t), y = min(df_beta$beta), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
-        annotate("text", x = min(df_beta$t), y = min(df_beta$beta), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3) +
         if (log) scale_y_continuous(trans = 'log10', name = "log(compartment counts)") else NULL
       
-    } else { # Obs with noise exist
+    } else { # Obs with noise exists
+      
+      # Plot without S compartment and without log scaling
+      simulated_compartments_except_S <- ggplot(obs, aes(x = t)) +
+        geom_line(aes(y = E, color = 'E')) +
+        geom_line(aes(y = I, color = 'I')) +
+        geom_line(aes(y = R, color = 'R')) +
+        geom_point(data = obs_with_noise, aes(x = t, y = E, color = "E", shape = "Noisy data")) +
+        geom_point(data = obs_with_noise, aes(x = t, y = I, color = "I", shape = "Noisy data")) +
+        geom_point(data = obs_with_noise, aes(x = t, y = R, color = "R", shape = "Noisy data")) +
+        theme_minimal() +
+        ylab("Compartment counts") +
+        xlab("Time") + 
+        ggtitle("Simulated observations (excluding S)") +
+        scale_color_manual(values = cols_SEIR[names(cols_SEIR) != "S"],
+                           labels = labels_SEIR[names(labels_SEIR) != "S"], 
+                           name = "Compartments") +
+        scale_shape_manual(values = c("Noisy data" = 1),
+                           name = "Points",
+                           labels = c("Noisy data"),
+                           guide = guide_legend(override.aes = list(color = "grey"))) +
+        guides(color = guide_legend(order = 1)) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3)
       
       # To avoid warnings
       if (log == TRUE) {
@@ -327,8 +410,8 @@ plotting_simulated_data_lsoda <- function(model, sim,
                            labels = c("Noisy data"),
                            guide = guide_legend(override.aes = list(color = "grey"))) +
         guides(color = guide_legend(order = 1)) +
-        annotate("text", x = min(df_beta$t), y = min(df_beta$beta), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
-        annotate("text", x = min(df_beta$t), y = min(df_beta$beta), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Latency Rate:", round(latency_rate,4)), hjust = 0, vjust = -3, size = 3) +
+        annotate("text", x = min(obs$t), y = max(obs$E), label = paste("Recovery Rate:", round(recovery_rate,4)), hjust = 0, vjust = -1, size = 3) +
         if (log) scale_y_continuous(trans = 'log10', name = "log(compartment counts)") else NULL
       
     }
@@ -357,5 +440,8 @@ plotting_simulated_data_lsoda <- function(model, sim,
     theme(legend.position = "top")
   
   # Return the plots as a list
-  list(simulated_compartments = simulated_compartments, simulated_beta = simulated_beta, simulated_R = simulated_R)
+  list(simulated_compartments = simulated_compartments, 
+       simulated_compartments_except_S = simulated_compartments_except_S, 
+       simulated_beta = simulated_beta, 
+       simulated_R = simulated_R)
 }

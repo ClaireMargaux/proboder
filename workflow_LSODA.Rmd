@@ -32,6 +32,7 @@ load_required_packages()
 ```
 
 
+
 #-------------------------------------------------------------------------------
 
 ## Simulation Example (simEx)
@@ -106,6 +107,7 @@ plots <- plotting_simulated_data_lsoda(
 (simulated_beta <- plots$simulated_beta)
 (simulated_R <- plots$simulated_R)
 (simulated_compartments <- plots$simulated_compartments)
+(simulated_compartments_except_S <- plots$simulated_compartments_except_S)
 ```
 
 #### Perform inference
@@ -121,8 +123,6 @@ noise_wiener_U <- 0.01 # noise of Wiener process associated with U
 beta0 = df_beta$beta[1] # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
 jit <- 0.001 # value for jitter on innovation covariance
-clip_X <- 10 # value to clip variance of X
-clip_U <- NULL # 0.1 # value to clip variance of U
 obs_to_use <- obs_with_noise # choose if obs, obs_with_noise,        
                              # obs_with_noise_only_R
 
@@ -132,7 +132,7 @@ initial_params <-
                    beta0 = beta0, beta0prime = beta0prime,
                    lambda = lambda, gamma = gamma, eta = eta,
                    l = l, scale = 1, noise_obs = noise_obs,
-                   noise_X = sqrt(noise_obs), noise_U = 0.1,
+                   noise_X = sqrt(noise_obs), noise_U = 0.5,
                    noise_wiener_X = noise_wiener_X, 
                    noise_wiener_U = noise_wiener_U,
                    pop = pop,
@@ -148,7 +148,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -175,12 +174,20 @@ cond_plot <- processed_data$cond_plot
      obs_with_noise = obs_with_noise, # if available, otherwise set NULL
      X_plot = X_plot))
 
+# Plot all but S compartment counts inferred from simulated data
+(compartments_except_S <- 
+  plot_compartments_except_S(
+    model = model,
+    obs = obs, 
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+    X_plot = X_plot))
+
 # Plot compartment counts separately
 plots_sep <- 
   plot_compartments_separately(
     model = model,
     obs = obs,
-    obs_with_noise = NULL, # if available, otherwise set NULL
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
     X_plot = X_plot)
 
 num_plots <- length(plots_sep)
@@ -228,11 +235,11 @@ invisible(condition_numbers <- grid.arrange(
 
 if (TRUE) { # set TRUE to perform random search
   seed <- 5
-  num_param_sets <- 1000 # number of parameter sets to sample
+  num_param_sets <- 100 # number of parameter sets to sample
   
-  seq_l <- seq(1, 100, by = 1)
-  seq_wiener_X <- seq(1, 1000, by = 10)
-  seq_wiener_U <- seq(0.001, 2, by = 0.02)
+  seq_l <- seq(1, 100, by = 5)
+  seq_wiener_X <- seq(1, 1000, by = 50)
+  seq_wiener_U <- seq(0.001, 2, by = 0.1)
   seq_beta0prime <- c(-0.5, -0.25, 0, 0.25, 0.5)
   seq_jit <- c(0.001, 0.01, 0.1, 1)
   
@@ -241,7 +248,8 @@ if (TRUE) { # set TRUE to perform random search
       model = model, obs_to_use = obs_to_use, df_beta = df_beta, 
       noise_obs = noise_obs, 
       lambda = lambda, gamma = gamma, eta = eta, pop = pop, 
-      beta0 = beta0, clip_X = clip_X, clip_U = clip_U,
+      beta0 = beta0, 
+      jit_X = jit_X, jit_U = jit_U,
       seed = seed, num_param_sets = num_param_sets, 
       seq_l = seq_l, 
       seq_wiener_X = seq_wiener_X, 
@@ -250,7 +258,7 @@ if (TRUE) { # set TRUE to perform random search
       seq_jit = seq_jit
     )
 
-  plots_scores <- plot_scores(results_summary)
+  plots_scores <- plot_scores(results_summary, aggregate = TRUE)
   invisible(grid_of_mean_plots <- grid.arrange(
     grobs = plots_scores$mean_plots,
     ncol = 2, 
@@ -302,7 +310,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -329,12 +336,20 @@ cond_plot <- processed_data$cond_plot
      obs_with_noise = obs_with_noise, # if available, otherwise set NULL
      X_plot = X_plot))
 
+# Plot all but S compartment counts inferred from simulated data
+(compartments_except_S <- 
+  plot_compartments_except_S(
+    model = model,
+    obs = obs, 
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+    X_plot = X_plot))
+
 # Plot compartment counts separately
 plots_sep <- 
   plot_compartments_separately(
     model = model,
     obs = obs,
-    obs_with_noise = NULL, # if available, otherwise set NULL
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
     X_plot = X_plot)
 
 num_plots <- length(plots_sep)
@@ -468,8 +483,6 @@ noise_wiener_U <- 0.01 # noise of Wiener process associated with U
 beta0 = df_beta$beta[1] # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
 jit <- 0.001 # value for jitter on innovation covariance
-clip_X <- 10 # value to clip variance of X
-clip_U <- 0.1 # value to clip variance of U
 obs_to_use <- obs_with_noise # choose if obs, obs_with_noise,        
                              # obs_with_noise_only_R
 
@@ -495,7 +508,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -522,12 +534,20 @@ cond_plot <- processed_data$cond_plot
      obs_with_noise = obs_with_noise, # if available, otherwise set NULL
      X_plot = X_plot))
 
+# Plot all but S compartment counts inferred from simulated data
+(compartments_except_S <- 
+  plot_compartments_except_S(
+    model = model,
+    obs = obs, 
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+    X_plot = X_plot))
+
 # Plot compartment counts separately
 plots_sep <- 
   plot_compartments_separately(
     model = model,
     obs = obs,
-    obs_with_noise = NULL, # if available, otherwise set NULL
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
     X_plot = X_plot)
 
 num_plots <- length(plots_sep)
@@ -588,7 +608,7 @@ if (TRUE) { # set TRUE to perform random search
       model = model, obs_to_use = obs_to_use, df_beta = df_beta, 
       noise_obs = noise_obs, 
       lambda = lambda, gamma = gamma, eta = eta, pop = pop, 
-      beta0 = beta0, clip_X = clip_X, clip_U = clip_U,
+      beta0 = beta0, jit_X = jit_X, jit_U = jit_U,
       seed = seed, num_param_sets = num_param_sets, 
       seq_l = seq_l, 
       seq_wiener_X = seq_wiener_X, 
@@ -597,7 +617,7 @@ if (TRUE) { # set TRUE to perform random search
       seq_jit = seq_jit
     )
 
-  plots_scores <- plot_scores(results_summary)
+  plots_scores <- plot_scores(results_summary, aggregate = TRUE)
   invisible(grid_of_mean_plots <- grid.arrange(
     grobs = plots_scores$mean_plots,
     ncol = 2, 
@@ -649,7 +669,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -676,12 +695,20 @@ cond_plot <- processed_data$cond_plot
      obs_with_noise = obs_with_noise, # if available, otherwise set NULL
      X_plot = X_plot))
 
+# Plot all but S compartment counts inferred from simulated data
+(compartments_except_S <- 
+  plot_compartments_except_S(
+    model = model,
+    obs = obs, 
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+    X_plot = X_plot))
+
 # Plot compartment counts separately
 plots_sep <- 
   plot_compartments_separately(
     model = model,
     obs = obs,
-    obs_with_noise = NULL, # if available, otherwise set NULL
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
     X_plot = X_plot)
 
 num_plots <- length(plots_sep)
@@ -818,8 +845,6 @@ noise_wiener_U <- 0.01 # noise of Wiener process associated with U
 beta0 = df_beta$beta[1] # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
 jit <- 0.001 # value for jitter on innovation covariance
-clip_X <- 10 # value to clip variance of X
-clip_U <- 0.1 # value to clip variance of U
 obs_to_use <- obs_with_noise_only_R # choose if obs, obs_with_noise,        
                                     # obs_with_noise_only_R
 
@@ -845,7 +870,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -872,12 +896,20 @@ cond_plot <- processed_data$cond_plot
      obs_with_noise = obs_with_noise, # if available, otherwise set NULL
      X_plot = X_plot))
 
+# Plot all but S compartment counts inferred from simulated data
+(compartments_except_S <- 
+  plot_compartments_except_S(
+    model = model,
+    obs = obs, 
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+    X_plot = X_plot))
+
 # Plot compartment counts separately
 plots_sep <- 
   plot_compartments_separately(
     model = model,
     obs = obs,
-    obs_with_noise = NULL, # if available, otherwise set NULL
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
     X_plot = X_plot)
 
 num_plots <- length(plots_sep)
@@ -938,7 +970,7 @@ if (TRUE) { # set TRUE to perform random search
       model = model, obs_to_use = obs_to_use, df_beta = df_beta, 
       noise_obs = noise_obs, 
       lambda = lambda, gamma = gamma, eta = eta, pop = pop, 
-      beta0 = beta0, clip_X = clip_X, clip_U = clip_U,
+      beta0 = beta0, jit_X = jit_X, jit_U = jit_U,
       seed = seed, num_param_sets = num_param_sets, 
       seq_l = seq_l, 
       seq_wiener_X = seq_wiener_X, 
@@ -947,7 +979,7 @@ if (TRUE) { # set TRUE to perform random search
       seq_jit = seq_jit
     )
 
-  plots_scores <- plot_scores(results_summary)
+  plots_scores <- plot_scores(results_summary, aggregate = TRUE)
   invisible(grid_of_mean_plots <- grid.arrange(
     grobs = plots_scores$mean_plots,
     ncol = 2, 
@@ -999,7 +1031,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -1026,12 +1057,20 @@ cond_plot <- processed_data$cond_plot
      obs_with_noise = obs_with_noise, # if available, otherwise set NULL
      X_plot = X_plot))
 
+# Plot all but S compartment counts inferred from simulated data
+(compartments_except_S <- 
+  plot_compartments_except_S(
+    model = model,
+    obs = obs, 
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+    X_plot = X_plot))
+
 # Plot compartment counts separately
 plots_sep <- 
   plot_compartments_separately(
     model = model,
     obs = obs,
-    obs_with_noise = NULL, # if available, otherwise set NULL
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
     X_plot = X_plot)
 
 num_plots <- length(plots_sep)
@@ -1167,8 +1206,6 @@ noise_wiener_U <- 0.001 # noise of Wiener process associated with U
 beta0 = df_beta$beta[1] # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
 jit <- 0.001 # value for jitter on innovation covariance
-clip_X <- 10 # value to clip variance of X
-clip_U <- 0.1 # value to clip variance of U
 obs_to_use <- obs_with_noise # choose if obs, obs_with_noise,        
                              # obs_with_noise_only_R
 
@@ -1194,7 +1231,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -1221,12 +1257,20 @@ cond_plot <- processed_data$cond_plot
      obs_with_noise = obs_with_noise, # if available, otherwise set NULL
      X_plot = X_plot))
 
+# Plot all but S compartment counts inferred from simulated data
+(compartments_except_S <- 
+  plot_compartments_except_S(
+    model = model,
+    obs = obs, 
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+    X_plot = X_plot))
+
 # Plot compartment counts separately
 plots_sep <- 
   plot_compartments_separately(
     model = model,
     obs = obs,
-    obs_with_noise = NULL, # if available, otherwise set NULL
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
     X_plot = X_plot)
 
 num_plots <- length(plots_sep)
@@ -1287,7 +1331,7 @@ if (TRUE) { # set TRUE to perform random search
       model = model, obs_to_use = obs_to_use, df_beta = df_beta, 
       noise_obs = noise_obs, 
       lambda = lambda, gamma = gamma, eta = eta, pop = pop, 
-      beta0 = beta0, clip_X = clip_X, clip_U = clip_U,
+      beta0 = beta0, jit_X = jit_X, jit_U = jit_U,
       seed = seed, num_param_sets = num_param_sets, 
       seq_l = seq_l, 
       seq_wiener_X = seq_wiener_X, 
@@ -1296,7 +1340,7 @@ if (TRUE) { # set TRUE to perform random search
       seq_jit = seq_jit
     )
 
-  plots_scores <- plot_scores(results_summary)
+  plots_scores <- plot_scores(results_summary, aggregate = TRUE)
   invisible(grid_of_mean_plots <- grid.arrange(
     grobs = plots_scores$mean_plots,
     ncol = 2, 
@@ -1348,7 +1392,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -1375,12 +1418,20 @@ cond_plot <- processed_data$cond_plot
      obs_with_noise = obs_with_noise, # if available, otherwise set NULL
      X_plot = X_plot))
 
+# Plot all but S compartment counts inferred from simulated data
+(compartments_except_S <- 
+  plot_compartments_except_S(
+    model = model,
+    obs = obs, 
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+    X_plot = X_plot))
+
 # Plot compartment counts separately
 plots_sep <- 
   plot_compartments_separately(
     model = model,
     obs = obs,
-    obs_with_noise = NULL, # if available, otherwise set NULL
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
     X_plot = X_plot)
 
 num_plots <- length(plots_sep)
@@ -1511,8 +1562,6 @@ noise_wiener_U <- 0.001 # noise of Wiener process associated with U
 beta0 = df_beta$beta[1] # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
 jit <- 0.001 # value for jitter on innovation covariance
-clip_X <- 10 # value to clip variance of X
-clip_U <- 0.1 # value to clip variance of U
 obs_to_use <- obs_with_noise_only_R # choose if obs, obs_with_noise,        
                              # obs_with_noise_only_R
 
@@ -1538,7 +1587,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -1565,12 +1613,20 @@ cond_plot <- processed_data$cond_plot
      obs_with_noise = obs_with_noise, # if available, otherwise set NULL
      X_plot = X_plot))
 
+# Plot all but S compartment counts inferred from simulated data
+(compartments_except_S <- 
+  plot_compartments_except_S(
+    model = model,
+    obs = obs, 
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+    X_plot = X_plot))
+
 # Plot compartment counts separately
 plots_sep <- 
   plot_compartments_separately(
     model = model,
     obs = obs,
-    obs_with_noise = NULL, # if available, otherwise set NULL
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
     X_plot = X_plot)
 
 num_plots <- length(plots_sep)
@@ -1631,7 +1687,7 @@ if (TRUE) { # set TRUE to perform random search
       model = model, obs_to_use = obs_to_use, df_beta = df_beta, 
       noise_obs = noise_obs, 
       lambda = lambda, gamma = gamma, eta = eta, pop = pop, 
-      beta0 = beta0, clip_X = clip_X, clip_U = clip_U,
+      beta0 = beta0, jit_X = jit_X, jit_U = jit_U,
       seed = seed, num_param_sets = num_param_sets, 
       seq_l = seq_l, 
       seq_wiener_X = seq_wiener_X, 
@@ -1640,7 +1696,7 @@ if (TRUE) { # set TRUE to perform random search
       seq_jit = seq_jit
     )
 
-  plots_scores <- plot_scores(results_summary)
+  plots_scores <- plot_scores(results_summary, aggregate = TRUE)
   invisible(grid_of_mean_plots <- grid.arrange(
     grobs = plots_scores$mean_plots,
     ncol = 2, 
@@ -1692,7 +1748,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -1719,12 +1774,20 @@ cond_plot <- processed_data$cond_plot
      obs_with_noise = obs_with_noise, # if available, otherwise set NULL
      X_plot = X_plot))
 
+# Plot all but S compartment counts inferred from simulated data
+(compartments_except_S <- 
+  plot_compartments_except_S(
+    model = model,
+    obs = obs, 
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
+    X_plot = X_plot))
+
 # Plot compartment counts separately
 plots_sep <- 
   plot_compartments_separately(
     model = model,
     obs = obs,
-    obs_with_noise = NULL, # if available, otherwise set NULL
+    obs_with_noise = obs_with_noise, # if available, otherwise set NULL
     X_plot = X_plot)
 
 num_plots <- length(plots_sep)
@@ -1768,6 +1831,7 @@ invisible(condition_numbers <- grid.arrange(
 
 
 
+
 # -----------------------------------------------------------------------------
 
 ## Store data
@@ -1789,9 +1853,11 @@ if (TRUE) { # Set TRUE to save
     processed_data = processed_data, 
     # Plots
     simulated_compartments = simulated_compartments, 
+    simulated_compartments_except_S = simulated_compartments_except_S,
     simulated_beta = simulated_beta,
     simulated_R = simulated_R,
     compartments = compartments,
+    compartments_except_S = compartments_except_S,
     transmission_rate_with_CI = transmission_rate_with_CI,
     reproduction_number_with_CI = reproduction_number_with_CI,
     grid_plots_sep = grid_plots_sep,

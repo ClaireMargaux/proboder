@@ -363,23 +363,24 @@ matrix_P <- function(P_X, P_U) {
 #' @param grids List of time grids for inference.
 #' @param obs Data frame, contains the dates and the compartment counts.
 #' @param jit Numeric, value to add as jitter to the innovation covariance (optional, default 0.001).
-#' @param clip_X Numeric, value to clip (from below) the variance of X (optional).
-#' @param clip_U Numeric, value to clip (from below) the variance of U (optional).
+#' @param jit_X Numeric, value to add as jitter to the covariance matrix of X (optional, default 1e-9).
+#' @param jit_U Numeric, value to add as jitter to the covariance matrix of U (optional, default 1e-9).
 #' @param initial_params List of initial parameters obtained from the initialization function.
 #'
 #' @return A list with the inferred values of X, U, P_X, and P_U.
 #' @export
 inference <- function(model, grids, obs, 
                       jit = 0.001, 
-                      clip_X = NULL, clip_U = NULL,
+                      jit_X = 1e-9, jit_U = 1e-9,
                       initial_params){
+  
   # Arguments:
   #   model: String, type of model to be used ('SEIRD' or 'SEIR' available).
   #   grids: List of time grids for inference.
   #   obs: Data frame, contains the dates and the compartment counts.
   #   jit: Numeric, value to add as jitter to the innovation covariance (optional, default 0.001).
-  #   clip_X: Numeric, value to clip (from below) the variance of X (optional, default 10).
-  #   clip_U: Numeric, value to clip (from below) the variance of U (optional, default 0.1).
+  #   jit_X: Numeric, value to add as jitter to the covariance matrix of X (optional, default 1e-9).
+  #   jit_U: Numeric, value to add as jitter to the covariance matrix of U (optional, default 1e-9).
   #   initial_params: List of initial parameters obtained from the initialization function.
   # 
   # Returns:
@@ -519,15 +520,31 @@ inference <- function(model, grids, obs,
         P_U_pred <- as.matrix(updated_states[[2]][13:14, 13:14])
       }
     }
+
     # Condition number
     cond_S_ode <- updated_states[[3]]
     
-    # Avoid overconfidence (clipping)
-    if(!is.null(clip_X)){
-      diag(P_X_pred)[diag(P_X_pred) < clip_X] <- clip_X
+    # Function to check if a matrix is positive semidefinite
+    is_positive_semidefinite <- function(matrix, tol = 1e-10) {
+      eigenvalues <- eigen(matrix)$values
+      eigenvalues_real <- Re(eigenvalues)
+      all(eigenvalues_real >= -tol)
     }
-    if(!is.null(clip_U)){
-      diag(P_U_pred)[diag(P_U_pred) < clip_U] <- clip_U
+
+    # Initial jitter values
+    jitter_for_X <- jit_X  # Initial jitter value for P_X_pred
+    jiter_for_U <- jit_U  # Initial jitter value for P_U_pred
+    
+    # Ensure positive semidefiniteness of P_X_pred
+    while (!is_positive_semidefinite(P_X_pred)) {
+      P_X_pred <- P_X_pred + diag(jitter_for_X, nrow = nrow(P_X_pred))
+      jitter_for_X <- jitter_for_X * 10  # Increase jitter value
+    }
+    
+    # Ensure positive semidefiniteness of P_U_pred
+    while (!is_positive_semidefinite(P_U_pred)) {
+      P_U_pred <- P_U_pred + diag(jiter_for_U, nrow = nrow(P_U_pred))
+      jiter_for_U <- jiter_for_U * 10  # Increase jitter value
     }
     
     # Compute condition numbers

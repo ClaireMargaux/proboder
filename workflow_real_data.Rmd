@@ -90,8 +90,10 @@ noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
 jit <- 1 # value for jitter on innovation covariance
-clip_X <- 10 # value to clip variance of X
-clip_U <- 0.1 # value to clip variance of U
+clip_X <- NULL # 10 # value to clip variance of X
+clip_U <- NULL # 0.1 # value to clip variance of U
+jit_X <- 10 # value for jitter on covariance matrix of X
+jit_U <- 0.1 # value for jitter on covariance matrix of U
 
 # Initialize
 initial_params <-
@@ -116,6 +118,7 @@ inference_results <- inference(model = model,
                                obs = obs_to_use, 
                                jit = jit, 
                                clip_X = clip_X, clip_U = clip_U,
+                               jit_X = jit_X, jit_U = jit_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -230,8 +233,6 @@ noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
 jit <- 1 # value for jitter on innovation covariance
-clip_X <- 10 # value to clip variance of X
-clip_U <- 0.1 # value to clip variance of U
 
 # Initialize
 initial_params <-
@@ -255,7 +256,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -306,6 +306,8 @@ invisible(grid_plots_sep <- grid.arrange(
       fatality_rate = eta, 
       lengthscale = l))
 ```
+
+
 
 
 
@@ -369,8 +371,6 @@ noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
 jit <- 1 # value for jitter on innovation covariance
-clip_X <- 10 # value to clip variance of X
-clip_U <- 0.1 # value to clip variance of U
 
 # Initialize
 initial_params <-
@@ -394,7 +394,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -446,6 +445,142 @@ invisible(grid_plots_sep <- grid.arrange(
       lengthscale = l))
 ```
 
+
+## Test C
+
+Data from BE, 300 days.
+
+#### Import data
+
+```{r, fig.width=8, fig.height=6}
+# ------
+# Import
+# ------
+
+# Choose data to be imported
+region <- 'BE' # 'BE' or 'GE' available 
+daily_or_weekly <- 'daily' # choose either 'daily' or 'weekly'
+directory_data <- 
+  "~/Documents/GitHub/proboder/Data/real" # directory of data
+
+# Import data
+data <- load_data(region = region,
+                  daily_or_weekly = daily_or_weekly,
+                  directory_data = directory_data)
+obs_with_noise <- data$obs
+pop <- data$population
+
+# Take only first 300 days
+tmax <- 300
+obs_to_use <- obs_with_noise[1:tmax,]
+
+# Visualisation
+(real_compartments <- plotting_real_data(obs = obs_to_use))
+```
+
+#### Perform inference
+
+```{r, fig.width=8, fig.height=6}
+# ---------
+# Inference
+# ---------
+
+model <- 'SEIR' # model to be simulated 
+
+steps <- 1 # steps for time grid
+max_time <- tmax # max time for time grid
+
+lambda <- 1/(2.6) # latency rate, ref value 1/(2.6)
+gamma <- 1/(2.6) # recovery rate, ref value 1/(2.6)
+if (model == 'SEIRD') {
+  eta <- 0.024*(1/15) # fatality rate, ref value 0.024*(1/15)
+} else if (model == 'SEIR') {
+  eta <- 0
+}
+
+noise_obs <- 100 # noise of observations
+l <- 50 # lengthscale
+noise_wiener_X <- 1 # noise of the Wiener process associated with X
+noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
+beta0 = 0.8 # starting transmission rate
+beta0prime <- 0 # starting 1st derivative of transmission rate
+jit <- 50 # value for jitter on innovation covariance
+jit_X <- 10
+jit_U <- 1
+
+# Initialize
+initial_params <-
+    initialization(model = model, obs = obs_to_use,
+                   beta0 = beta0, beta0prime = beta0prime,
+                   lambda = lambda, gamma = gamma, eta = eta,
+                   l = l, scale = 1, noise_obs = noise_obs,
+                   noise_X = sqrt(noise_obs), noise_U = 0.1,
+                   noise_wiener_X = noise_wiener_X, 
+                   noise_wiener_U = noise_wiener_U,
+                   pop = pop,
+                   start_S = NULL, start_E = NULL, 
+                   start_I = NULL, start_R = NULL,
+                   start_D = NULL)
+
+# Generate time grids for inference
+grids <- generate_grid(obs_to_use, num_points_between = 0, daily_or_weekly)
+
+# Run inference
+inference_results <- inference(model = model, 
+                               grids = grids, 
+                               obs = obs_to_use, 
+                               jit = jit, 
+                               jit_X = jit_X, jit_U = jit_U,
+                               initial_params = initial_params)
+
+# Process data for scoring and visualization
+processed_data <- process_data(inference_results = inference_results,
+                               grids = grids,
+                               model = model,
+                               pop = pop, 
+                               lambda = lambda, 
+                               gamma = gamma, 
+                               eta = eta)
+U_plot <- processed_data$U_plot
+X_plot <- processed_data$X_plot
+R_plot <- processed_data$R_plot
+
+# Plot compartment counts inferred from real data
+(compartments <- 
+    plot_compartments_real(
+      obs = obs_to_use, 
+      X_plot = X_plot))
+
+# Plot compartment counts separately
+plots_sep <- 
+  plot_compartments_separately_real(
+    obs = obs_to_use,
+    X_plot = X_plot)
+
+num_plots <- length(plots_sep)
+invisible(grid_plots_sep <- grid.arrange(
+    grobs = plots_sep,
+    ncol = 2,
+    nrow = ceiling(num_plots/2)))
+
+# Plot transmission rate with 95% confidence interval
+(transmission_rate_with_CI <- 
+    plot_transmission_rate_with_CI(
+      U_plot = U_plot, 
+      latency_rate = lambda, 
+      recovery_rate = gamma, 
+      fatality_rate = eta, 
+      lengthscale = l))
+
+# Plot reproduction number with approx. 95% confidence interval
+(reproduction_number_with_CI <- 
+    plot_reproduction_number_with_CI(
+      R_plot = R_plot, 
+      latency_rate = lambda, 
+      recovery_rate = gamma, 
+      fatality_rate = eta, 
+      lengthscale = l))
+```
 
 
 #-------------------------------------------------------------------------------
