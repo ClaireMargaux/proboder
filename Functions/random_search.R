@@ -101,8 +101,6 @@ run_random_search <- function(model, obs_to_use, df_beta, noise_obs,
                 grids = grids, 
                 obs = obs_to_use, 
                 jit = param_i$jit,
-                clip_X = clip_X,
-                clip_U = clip_U,
                 jit_X = jit_X,
                 jit_U = jit_U,
                 initial_params = initial_params)
@@ -255,19 +253,22 @@ plot_scores <- function(results_summary,
   }
   
   # Function to plot mean scores for a given parameter
-  plot_mean_scores <- function(df, parameter) {
+  plot_mean_scores <- function(df, parameter, aggregate) {
+    # Aggregate data if needed
     if (aggregate) {
       aggregated_df <- aggregate_data_mean(df, parameter)
+      title_text <- TeX(paste("Aggregated mean scores for", params_expressions[parameter]))
     } else {
       aggregated_df <- df %>%
         filter(!is.na(mean_SPE) & !is.na(mean_NLPD) & !is.na(mean_CRPS))
+      title_text <- TeX(paste("Mean scores for", params_expressions[parameter]))
     }
     
     ggplot(aggregated_df, aes_string(x = parameter)) +
       geom_point(aes(y = mean_SPE, color = "SPE")) +
       geom_point(aes(y = mean_NLPD, color = "NLPD")) +
       geom_point(aes(y = mean_CRPS, color = "CRPS")) +
-      labs(title = TeX(paste("Mean scores for", params_expressions[parameter])), 
+      labs(title = title_text, 
            x = TeX(params_expressions[parameter]), 
            y = "Mean score",
            color = "Score") +
@@ -276,19 +277,22 @@ plot_scores <- function(results_summary,
   }
   
   # Function to plot median scores for a given parameter
-  plot_median_scores <- function(df, parameter) {
+  plot_median_scores <- function(df, parameter, aggregate) {
+    # Aggregate data if needed
     if (aggregate) {
       aggregated_df <- aggregate_data_median(df, parameter)
+      title_text <- TeX(paste("Aggregated median scores for", params_expressions[parameter]))
     } else {
       aggregated_df <- df %>%
         filter(!is.na(median_SPE) & !is.na(median_NLPD) & !is.na(median_CRPS))
+      title_text <- TeX(paste("Median scores for", params_expressions[parameter]))
     }
     
     ggplot(aggregated_df, aes_string(x = parameter)) +
       geom_point(aes(y = median_SPE, color = "SPE")) +
       geom_point(aes(y = median_NLPD, color = "NLPD")) +
       geom_point(aes(y = median_CRPS, color = "CRPS")) +
-      labs(title = TeX(paste("Median scores for", params_expressions[parameter])), 
+      labs(title = title_text, 
            x = TeX(params_expressions[parameter]), 
            y = "Median score",
            color = "Score") +
@@ -302,56 +306,121 @@ plot_scores <- function(results_summary,
   
   # Generate and store plots for each parameter
   for (param in parameters_to_plot) {
-    plot_list_mean[[param]] <- plot_mean_scores(results_summary, param)
-    plot_list_median[[param]] <- plot_median_scores(results_summary, param)
+    plot_list_mean[[param]] <- plot_mean_scores(results_summary, param, aggregate)
+    plot_list_median[[param]] <- plot_median_scores(results_summary, param, aggregate)
   }
   
   # Return the lists of plots
   return(list(mean_plots = plot_list_mean, median_plots = plot_list_median))
 }
 
-#' Find the Best Set of Hyperparameters
+#' Find the best set of hyperparameters
 #'
-#' This function identifies the best set of hyperparameters from a summary of results based on mean scores for SPE, NLPD, and CRPS.
-#' It first checks for a set that minimizes all three scores, then checks for sets minimizing at least two scores, and finally prioritizes the minimal CRPS score if no other criteria are met.
+#' This function identifies the best set of hyperparameters from a summary of results based on mean and median scores for SPE, NLPD, and CRPS.
+#' It first checks for a set that minimizes all three scores (mean and median), then checks for sets minimizing at least two scores (mean and median),
+#' and finally returns the best sets with respect to individual scores (mean and median) and overall.
+#' If no sets meet the criteria for minimizing two or all three scores, `NA` values are included in the results.
 #'
-#' @param results_summary A data frame containing the summary of results with mean scores (SPE, NLPD, CRPS) for each set of hyperparameters.
+#' @param results_summary A data frame containing the summary of results with mean and median scores (SPE, NLPD, CRPS) for each set of hyperparameters.
 #'
-#' @return A data frame containing the best set of hyperparameters based on the criteria outlined.
+#' @return A data frame containing the best sets of hyperparameters based on the criteria outlined, including:
+#' \item{Best SPE (Mean)}{The hyperparameters that yield the minimum mean SPE.}
+#' \item{Best NLPD (Mean)}{The hyperparameters that yield the minimum mean NLPD.}
+#' \item{Best CRPS (Mean)}{The hyperparameters that yield the minimum mean CRPS.}
+#' \item{Best All (Mean)}{The hyperparameters that minimize all three or at least two mean scores, or `NA` if no such set exists.}
+#' \item{Best SPE (Median)}{The hyperparameters that yield the minimum median SPE.}
+#' \item{Best NLPD (Median)}{The hyperparameters that yield the minimum median NLPD.}
+#' \item{Best CRPS (Median)}{The hyperparameters that yield the minimum median CRPS.}
+#' \item{Best All (Median)}{The hyperparameters that minimize all three or at least two median scores, or `NA` if no such set exists.}
 #'
 #' @export
 find_best_hyperparameters <- function(results_summary) {
-  # Find the best set of hyperparameters for each score
+  
+  # Find the best set of hyperparameters for each score (mean)
   best_spe <- results_summary[which.min(results_summary$mean_SPE), ]
   best_nlpd <- results_summary[which.min(results_summary$mean_NLPD), ]
   best_crps <- results_summary[which.min(results_summary$mean_CRPS), ]
   
-  # Check if there is a set minimizing all three scores
-  best_all <- results_summary %>%
+  # Check if there is a set minimizing all three mean scores
+  best_all_mean <- results_summary %>%
     filter(mean_SPE == min(mean_SPE) & mean_NLPD == min(mean_NLPD) & mean_CRPS == min(mean_CRPS))
   
-  if (nrow(best_all) > 0) {
-    best_params <- best_all[1, ]
+  if (nrow(best_all_mean) > 0) {
+    best_params_mean <- best_all_mean[1, ]
   } else {
-    # Find sets minimizing at least two of the scores
-    best_two <- results_summary %>%
+    # Find sets minimizing at least two of the mean scores
+    best_two_mean <- results_summary %>%
       filter((mean_SPE == min(mean_SPE) & mean_NLPD == min(mean_NLPD)) |
                (mean_SPE == min(mean_SPE) & mean_CRPS == min(mean_CRPS)) |
                (mean_NLPD == min(mean_NLPD) & mean_CRPS == min(mean_CRPS)))
     
-    if (nrow(best_two) > 0) {
-      best_params <- best_two[1, ]
+    if (nrow(best_two_mean) > 0) {
+      best_params_mean <- best_two_mean[1, ]
     } else {
-      # If no sets minimize at least two scores, prioritize minimal CRPS
-      best_params <- best_spe
+      # No best_two found, set to NA
+      best_params_mean <- as.data.frame(matrix(NA, nrow = 1, ncol = ncol(results_summary)))
+      names(best_params_mean) <- names(results_summary)
+      best_params_mean$Type <- "Best All (Mean)"
     }
   }
   
-  # Generate nice table using knitr and kableExtra
-  table <- kable(best_params, align = "c", caption = "Random Search Results")
-  best_params_table <- kableExtra::kable_styling(table, 
-                                                   bootstrap_options = c("striped", "hover", "condensed", "responsive"),
-                                                   full_width = FALSE)
+  # Check if there is a set minimizing all three median scores
+  best_all_median <- results_summary %>%
+    filter(median_SPE == min(median_SPE) & median_NLPD == min(median_NLPD) & median_CRPS == min(median_CRPS))
+  
+  if (nrow(best_all_median) > 0) {
+    best_params_median <- best_all_median[1, ]
+  } else {
+    # Find sets minimizing at least two of the median scores
+    best_two_median <- results_summary %>%
+      filter((median_SPE == min(median_SPE) & median_NLPD == min(median_NLPD)) |
+               (median_SPE == min(median_SPE) & median_CRPS == min(median_CRPS)) |
+               (median_NLPD == min(median_NLPD) & median_CRPS == min(median_CRPS)))
+    
+    if (nrow(best_two_median) > 0) {
+      best_params_median <- best_two_median[1, ]
+    } else {
+      # No best_two found, set to NA
+      best_params_median <- as.data.frame(matrix(NA, nrow = 1, ncol = ncol(results_summary)))
+      names(best_params_median) <- names(results_summary)
+      best_params_median$Type <- "Best All (Median)"
+    }
+  }
+  
+  # Add Type column for each result to ensure rbind consistency
+  best_spe$Type <- "Best SPE (Mean)"
+  best_nlpd$Type <- "Best NLPD (Mean)"
+  best_crps$Type <- "Best CRPS (Mean)"
+  best_params_mean$Type <- "Best All (Mean)"
+  best_spe_median <- best_spe
+  best_nlpd_median <- best_nlpd
+  best_crps_median <- best_crps
+  best_spe_median$Type <- "Best SPE (Median)"
+  best_nlpd_median$Type <- "Best NLPD (Median)"
+  best_crps_median$Type <- "Best CRPS (Median)"
+  best_params_median$Type <- "Best All (Median)"
+  
+  # Combine results into a single data frame
+  combined_results <- rbind(
+    best_spe,
+    best_nlpd,
+    best_crps,
+    best_params_mean,
+    best_spe_median,
+    best_nlpd_median,
+    best_crps_median,
+    best_params_median
+  )
+  
+  # Reorder columns to have 'Type' as the first column
+  combined_results <- combined_results %>%
+    select(Type, everything())
+  
+  # Generate table using knitr and kableExtra
+  best_params_table <- kable(combined_results, align = "c", 
+                             caption = "Best hyperparameters for each score (mean and median)") %>%
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                  full_width = FALSE)
   
   return(best_params_table)
 }

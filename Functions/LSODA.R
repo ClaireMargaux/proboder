@@ -422,10 +422,12 @@ plotting_simulated_data_lsoda <- function(model, sim,
   simulated_beta <- ggplot() +
     geom_line(data = df_beta, aes(x = t, y = beta, color = "Simulated transmission rate"), linetype = "dashed") +
     theme_minimal() +
-    labs(x = "Time", y = "", color = "Legend") +  
+    labs(x = "Time", 
+         y = TeX("Transmission rate $\\beta(t)$"), 
+         title = TeX("Simulated transmission rate $\\beta(t)$"),
+         color = "Legend") + 
     scale_color_manual(values = c("Simulated transmission rate" = "#E69F00"),
                        labels = c("Simulated transmission rate"), name = "Line") +
-    ggtitle("Simulated transmission rate") +
     theme(legend.position = "top")
   
   # Create the reproduction number plot
@@ -433,10 +435,12 @@ plotting_simulated_data_lsoda <- function(model, sim,
     geom_line(data = df_R, aes(x = t, y = R, color = "Simulated reproduction number"), linetype = "dashed") +
     theme_minimal() +
     geom_hline(yintercept = 1, color = "#0072B2", linetype = "solid", linewidth = 0.5, alpha = 0.5) +
-    labs(x = "Time", y = "", color = "Legend") +  
+    labs(x = "Time", 
+         y = TeX("Reproduction number $R(t)$"), 
+         title = TeX("Simulated reproduction number $R(t)$"),
+         color = "Legend") +   
     scale_color_manual(values = c("Simulated reproduction number" = "#56B4E9"),
                        labels = c("Simulated reproduction number"), name = "Line") +
-    ggtitle("Simulated reproduction number") +
     theme(legend.position = "top")
   
   # Return the plots as a list

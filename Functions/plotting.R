@@ -22,7 +22,9 @@ plot_transmission_rate_with_CI <- function(U_plot,
       geom_ribbon(data = U_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
       geom_line(data = df_beta, aes(x = t, y = beta, color = "Simulated transmission rate"), linetype = "dashed") +
       geom_line(data = U_plot, aes(x = t, y = U_scaled, color = "Inferred transmission rate"), linewidth = 1) +
-      labs(x = "Time", y = "Transmission rate", title = "Transmission rate with 95%-confidence interval",
+      labs(x = "Time", 
+           y = TeX("Transmission rate $\\beta(t)$"), 
+           title = TeX("Transmission rate $\\beta(t)$ with 95\\%-confidence interval"),
            color = "Legend") +  
       scale_color_manual(values = c("Inferred transmission rate" = "#009E73", "Simulated transmission rate" = "#E69F00"),
                          labels = c("Inferred transmission rate", "Simulated transmission rate"), name = "Lines") + 
@@ -42,7 +44,9 @@ plot_transmission_rate_with_CI <- function(U_plot,
     ggplot() +
       geom_ribbon(data = U_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
       geom_line(data = U_plot, aes(x = t, y = U_scaled, color = "Inferred transmission rate"), linewidth = 1) +
-      labs(x = "Time", y = "Transmission rate", title = "Transmission rate with 95%-confidence interval",
+      labs(x = "Time", 
+           y = TeX("Transmission rate $\\beta(t)$"), 
+           title = TeX("Transmission rate $\\beta(t)$ with 95\\%-confidence interval"),
            color = "Legend") +  
       scale_color_manual(values = c("Inferred transmission rate" = "#009E73"),
                          labels = c("Inferred transmission rate"), name = "Lines") + 
@@ -83,7 +87,9 @@ plot_reproduction_number_with_CI <- function(R_plot,
       geom_ribbon(data = R_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
       geom_line(data = df_R, aes(x = t, y = R, color = "Simulated reproduction number"), linetype = "dashed") +
       geom_line(data = R_plot, aes(x = t, y = R, color = "Inferred reproduction number"), linewidth = 1) +
-      labs(x = "Time", y = "Reproduction number", title = "Reproduction number with approx. 95%-confidence interval",
+      labs(x = "Time", 
+           y = TeX("Reproduction number $R(t)$"), 
+           title = TeX("Reproduction number $R(t)$ with 95\\%-confidence interval"),
            color = "Legend") +  
       scale_color_manual(values = c("Inferred reproduction number" = "#0072B2", "Simulated reproduction number" = "#E69F00"),
                          labels = c("Inferred reproduction number", "Simulated reproduction number"), name = "Lines") + 
@@ -103,7 +109,9 @@ plot_reproduction_number_with_CI <- function(R_plot,
     ggplot() +
       geom_ribbon(data = R_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
       geom_line(data = R_plot, aes(x = t, y = R, color = "Inferred reproduction number"), linewidth = 1) +
-      labs(x = "Time", y = "Reproduction number", title = "Reproduction number with approx. 95%-confidence interval",
+      labs(x = "Time", 
+           y = TeX("Reproduction number $R(t)$"), 
+           title = TeX("Reproduction number $R(t)$ with 95\\%-confidence interval"),
            color = "Legend") +  
       scale_color_manual(values = c("Inferred reproduction number" = "#0072B2"),
                          labels = c("Inferred reproduction number"), name = "Lines") + 
@@ -881,38 +889,39 @@ plot_compartments_separately_real <- function(obs,X_plot) {
 #' # Example usage with a data frame `cond_plot`:
 #' plot_condition_numbers(cond_plot)
 #' }
+
 plot_condition_numbers <- function(data) {
   
   # Plot for cond_S_obs
   p1 <- ggplot(data, aes(x = time_grid, y = cond_S_obs)) +
     geom_line(color = "#E69F00") +
-    labs(title = "Condition number: S_obs",
-         x = "Time",
-         y = "Condition number") +
+    labs(title = TeX("Condition number: $S_{obs}$"),
+         x = TeX("Time"),
+         y = TeX("Condition number ($\\kappa$)")) +
     theme_minimal()
   
   # Plot for cond_S_ode
   p2 <- ggplot(data, aes(x = time_grid, y = cond_S_ode)) +
     geom_line(color = "#56B4E9") +
-    labs(title = "Condition number: S_ode",
-         x = "Time",
-         y = "Condition number") +
+    labs(title = TeX("Condition number: $S_{ODE}$"),
+         x = TeX("Time"),
+         y = TeX("Condition number ($\\kappa$)")) +
     theme_minimal()
   
   # Plot for cond_P_X
   p3 <- ggplot(data, aes(x = time_grid, y = cond_P_X)) +
     geom_line(color = "#009E73") +
-    labs(title = "Condition number: P_X",
-         x = "Time",
-         y = "Condition number") +
+    labs(title = TeX("Condition number: $P_X$"),
+         x = TeX("Time"),
+         y = TeX("Condition number ($\\kappa$)")) +
     theme_minimal()
   
   # Plot for cond_P_U
   p4 <- ggplot(data, aes(x = time_grid, y = cond_P_U)) +
     geom_line(color = "#F0E442") +
-    labs(title = "Condition number: P_U",
-         x = "Time",
-         y = "Condition number") +
+    labs(title = TeX("Condition number: $P_U$"),
+         x = TeX("Time"),
+         y = TeX("Condition number ($\\kappa$)")) +
     theme_minimal()
   
   res <- list(p1, p2, p3, p4)

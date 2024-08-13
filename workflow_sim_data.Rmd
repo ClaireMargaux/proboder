@@ -1,5 +1,5 @@
 ---
-title: "Workflow ProbODER LSODA"
+title: "Workflow ProbODER Simulated data"
 author: "Claire Descombes"
 date: "`r Sys.Date()`"
 output: 
@@ -235,7 +235,7 @@ invisible(condition_numbers <- grid.arrange(
 
 if (TRUE) { # set TRUE to perform random search
   seed <- 5
-  num_param_sets <- 100 # number of parameter sets to sample
+  num_param_sets <- 1000 # number of parameter sets to sample
   
   seq_l <- seq(1, 100, by = 5)
   seq_wiener_X <- seq(1, 1000, by = 50)
@@ -258,7 +258,11 @@ if (TRUE) { # set TRUE to perform random search
       seq_jit = seq_jit
     )
 
-  plots_scores <- plot_scores(results_summary, aggregate = TRUE)
+  plots_scores <- plot_scores(
+    results_summary, 
+    aggregate = FALSE # if TRUE, plots reflect aggregated scores
+  )
+  
   invisible(grid_of_mean_plots <- grid.arrange(
     grobs = plots_scores$mean_plots,
     ncol = 2, 
@@ -617,7 +621,11 @@ if (TRUE) { # set TRUE to perform random search
       seq_jit = seq_jit
     )
 
-  plots_scores <- plot_scores(results_summary, aggregate = TRUE)
+  plots_scores <- plot_scores(
+    results_summary, 
+    aggregate = TRUE # if TRUE, plots reflect aggregated scores
+  )
+  
   invisible(grid_of_mean_plots <- grid.arrange(
     grobs = plots_scores$mean_plots,
     ncol = 2, 
@@ -979,7 +987,11 @@ if (TRUE) { # set TRUE to perform random search
       seq_jit = seq_jit
     )
 
-  plots_scores <- plot_scores(results_summary, aggregate = TRUE)
+  plots_scores <- plot_scores(
+    results_summary, 
+    aggregate = TRUE # if TRUE, plots reflect aggregated scores
+  )
+  
   invisible(grid_of_mean_plots <- grid.arrange(
     grobs = plots_scores$mean_plots,
     ncol = 2, 
@@ -1340,7 +1352,11 @@ if (TRUE) { # set TRUE to perform random search
       seq_jit = seq_jit
     )
 
-  plots_scores <- plot_scores(results_summary, aggregate = TRUE)
+  plots_scores <- plot_scores(
+    results_summary, 
+    aggregate = TRUE # if TRUE, plots reflect aggregated scores
+  )
+  
   invisible(grid_of_mean_plots <- grid.arrange(
     grobs = plots_scores$mean_plots,
     ncol = 2, 
@@ -1696,7 +1712,11 @@ if (TRUE) { # set TRUE to perform random search
       seq_jit = seq_jit
     )
 
-  plots_scores <- plot_scores(results_summary, aggregate = TRUE)
+  plots_scores <- plot_scores(
+    results_summary, 
+    aggregate = TRUE # if TRUE, plots reflect aggregated scores
+  )
+  
   invisible(grid_of_mean_plots <- grid.arrange(
     grobs = plots_scores$mean_plots,
     ncol = 2, 
