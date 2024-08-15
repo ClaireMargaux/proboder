@@ -23,6 +23,14 @@ Installing R: https://cran.r-project.org/
 
 Installing RStudio: https://posit.co/products/open-source/rstudio/
 
+The inference is done using the Rmarkdown workflows:
+- workflow_sim_data.Rmd
+- workflow_real_data.Rmd
+
+For the workflows to work, you need to download the Functions folder.
+
+To store the data, you need to create a Results folder in the working directory.
+
 ## Usage
 
 Infer the transmission rate and reproduction number from public health data (cases) using a SEIR or SEIRD model. Inference through a state-space model using Gauss-Markov priors and (extended) Kalman filtering for the prediction and update steps.
