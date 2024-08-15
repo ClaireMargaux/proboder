@@ -35,7 +35,7 @@ Data from the Covid-19 Switzerland Dashboard of the Federal Office of Public Hea
  
 ## Algorithm
 
-...
+This repository contains an implementation of an (extended) Kalman filter for inference on epidemiological models, specifically SEIRD and SEIR. The algorithm integrates state-space modelling with ordinary differential equations (ODEs) to estimate and predict the dynamics of disease spread based on observed data.
 
 ## Parameters
 
