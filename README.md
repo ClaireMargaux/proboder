@@ -4,6 +4,10 @@
 
 State-space model for joint prediction of transmission rate and reproduction number from SEIR or SEIRD model and public health data.
 
+This R project is part of my master's thesis, which can be read on [Overleaf](https://www.overleaf.com/read/zvscscfpxfys#69aab2).
+
+The algorithm I developed in R is heavily inspired by the article by J. Schmidt, P. Hennig et al. _A Probabilistic State Space Model for Joint Inference from Differential Equations and Data_, which can be found [here](https://proceedings.neurips.cc/paper/2021/hash/6734fa703f6633ab896eecbdfad8953a-Abstract.html).
+
 ## Table of Contents
 
 - [Installation](#installation)
