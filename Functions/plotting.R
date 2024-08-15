@@ -23,8 +23,8 @@ plot_transmission_rate_with_CI <- function(U_plot,
       geom_line(data = df_beta, aes(x = t, y = beta, color = "Simulated transmission rate"), linetype = "dashed") +
       geom_line(data = U_plot, aes(x = t, y = U_scaled, color = "Inferred transmission rate"), linewidth = 1) +
       labs(x = "Time", 
-           y = TeX("Transmission rate $\\beta(t)$"), 
-           title = TeX("Transmission rate $\\beta(t)$ with 95\\%-confidence interval"),
+           y = TeX("Transmission rate $\\beta\\,(t)$"), 
+           title = TeX("Transmission rate $\\beta\\,(t)$ with 95\\%-confidence interval"),
            color = "Legend") +  
       scale_color_manual(values = c("Inferred transmission rate" = "#009E73", "Simulated transmission rate" = "#E69F00"),
                          labels = c("Inferred transmission rate", "Simulated transmission rate"), name = "Lines") + 
@@ -45,8 +45,8 @@ plot_transmission_rate_with_CI <- function(U_plot,
       geom_ribbon(data = U_plot, aes(x = t, ymin = ymin, ymax = ymax, fill = "Error Area"), alpha = 0.5) +
       geom_line(data = U_plot, aes(x = t, y = U_scaled, color = "Inferred transmission rate"), linewidth = 1) +
       labs(x = "Time", 
-           y = TeX("Transmission rate $\\beta(t)$"), 
-           title = TeX("Transmission rate $\\beta(t)$ with 95\\%-confidence interval"),
+           y = TeX("Transmission rate $\\beta\\,(t)$"), 
+           title = TeX("Transmission rate $\\beta\\,(t)$ with 95\\%-confidence interval"),
            color = "Legend") +  
       scale_color_manual(values = c("Inferred transmission rate" = "#009E73"),
                          labels = c("Inferred transmission rate"), name = "Lines") + 
@@ -699,7 +699,7 @@ plot_compartments_separately <- function(model, obs, obs_with_noise = NULL, X_pl
 #' 
 #' @return ggplot object: the counts plot.
 #' @export
-plotting_real_data <- function(obs, log = TRUE) {
+plotting_real_data <- function(obs, log = FALSE) {
 
   cols_SEIR <- c(R = "#F0E442")
   labels_SEIR <- c(R = "Recovered")
@@ -770,6 +770,38 @@ plot_compartments_real <- function(obs, X_plot) {
                           name = "Lines",
                           labels = c("Observed data", "Inferred data"),
                           guide = guide_legend(override.aes = list(color = "grey"))) 
+}
+
+#' Plot inferred compartment counts, excluding the S compartment.
+#'
+#' This function generates a plot of the observed and inferred compartment counts,
+#' excluding the S compartment and without log scaling.
+#'
+#' @param obs Data frame containing the observed compartment counts.
+#' @param X_plot Data frame containing the inferred compartment counts.
+#' @return A ggplot object displaying the observed and inferred compartment counts.
+#' @export
+plot_compartments_except_S_real <- function(obs, X_plot) {
+  
+  plot_title <- "Compartments counts (excluding S)"
+
+  cols_SEIR <- c(E = "#56B4E9", I = "#009E73", R = "#F0E442")
+  labels_SEIR <- c(E = "Exposed", I = "Infected", R = "Recovered")
+  
+  ggplot() +
+    geom_line(data = obs, aes(x = t, y = R, color = "R", linetype = "Data"), linewidth = 0.3) +
+    geom_line(data = X_plot, aes(x = t, y = E, color = "E", linetype = "Inferred"), linewidth = 1) +
+    geom_line(data = X_plot, aes(x = t, y = I, color = "I", linetype = "Inferred"), linewidth = 1) +
+    geom_line(data = X_plot, aes(x = t, y = R, color = "R", linetype = "Inferred"), linewidth = 1) +
+    labs(x = "Time", y = "Compartment counts", title = plot_title) +
+    theme_minimal() +
+    scale_color_manual(values = cols_SEIR,
+                       labels = labels_SEIR,
+                       name = "Compartments") +
+    scale_linetype_manual(values = c("Data" = "dashed", "Inferred" = "solid"),
+                          name = "Lines",
+                          labels = c("Simulated data", "Inferred data"),
+                          guide = guide_legend(override.aes = list(color = "grey")))
 }
 
 #' Plot inferred compartment counts separately.

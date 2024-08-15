@@ -12,7 +12,9 @@ output:
 knitr::opts_chunk$set(echo = TRUE, fig.width=8, fig.height=6)
 ```
 
-## Import functions
+## Import packages
+
+#### Import
 
 ```{r, echo=FALSE, include=FALSE}
 # Set source directory
@@ -28,6 +30,7 @@ source(file.path(source_directory, 'plotting.R'))
 # Load or install necessary packages
 load_required_packages()
 ```
+
 
 #-------------------------------------------------------------------------------
 
@@ -83,17 +86,13 @@ if (model == 'SEIRD') {
   eta <- 0
 }
 
-noise_obs <- 10 # noise of observations
-l <- 138 # lengthscale
-noise_wiener_X <- 1 # noise of the Wiener process associated with X
-noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
+noise_obs <- 30 # noise of observations
+l <- 40 # lengthscale
+noise_wiener_X <- 5 # noise of the Wiener process associated with X
+noise_wiener_U <- 0.01 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
-jit <- 1 # value for jitter on innovation covariance
-clip_X <- NULL # 10 # value to clip variance of X
-clip_U <- NULL # 0.1 # value to clip variance of U
-jit_X <- 10 # value for jitter on covariance matrix of X
-jit_U <- 0.1 # value for jitter on covariance matrix of U
+jit <- 0.1 # value for jitter on innovation covariance
 
 # Initialize
 initial_params <-
@@ -101,7 +100,7 @@ initial_params <-
                    beta0 = beta0, beta0prime = beta0prime,
                    lambda = lambda, gamma = gamma, eta = eta,
                    l = l, scale = 1, noise_obs = noise_obs,
-                   noise_X = sqrt(noise_obs), noise_U = 0.1,
+                   noise_X = sqrt(noise_obs), noise_U = 0.2,
                    noise_wiener_X = noise_wiener_X, 
                    noise_wiener_U = noise_wiener_U,
                    pop = pop,
@@ -117,8 +116,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               clip_X = clip_X, clip_U = clip_U,
-                               jit_X = jit_X, jit_U = jit_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -132,12 +129,19 @@ processed_data <- process_data(inference_results = inference_results,
 U_plot <- processed_data$U_plot
 X_plot <- processed_data$X_plot
 R_plot <- processed_data$R_plot
+cond_plot <- processed_data$cond_plot
 
 # Plot compartment counts inferred from real data
 (compartments <- 
     plot_compartments_real(
       obs = obs_to_use, 
       X_plot = X_plot))
+
+# Plot all but S compartment counts inferred from real data
+(compartments_except_S <- 
+  plot_compartments_except_S_real(
+    obs = obs_to_use, 
+    X_plot = X_plot))
 
 # Plot compartment counts separately
 plots_sep <- 
@@ -168,11 +172,21 @@ invisible(grid_plots_sep <- grid.arrange(
       recovery_rate = gamma, 
       fatality_rate = eta, 
       lengthscale = l))
+
+# Plot condition numbers of the innovation covariances 
+# and covariance matrices
+cond_plots <- 
+    plot_condition_numbers(cond_plot)
+
+number_plots <- length(cond_plots)
+invisible(condition_numbers <- grid.arrange(
+    grobs = cond_plots,
+    ncol = 2,
+    nrow = ceiling(number_plots/2)))
 ```
 
---------------------------------------------------------------------------------
 
-
+#-------------------------------------------------------------------------------
 
 ## Test A
 
@@ -226,13 +240,13 @@ if (model == 'SEIRD') {
   eta <- 0
 }
 
-noise_obs <- 100 # noise of observations
-l <- 5 # lengthscale
+noise_obs <- 50 # noise of observations
+l <- 10 # lengthscale
 noise_wiener_X <- 1 # noise of the Wiener process associated with X
-noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
+noise_wiener_U <- 0.01 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
-jit <- 1 # value for jitter on innovation covariance
+jit <- 0.1 # value for jitter on innovation covariance
 
 # Initialize
 initial_params <-
@@ -240,7 +254,7 @@ initial_params <-
                    beta0 = beta0, beta0prime = beta0prime,
                    lambda = lambda, gamma = gamma, eta = eta,
                    l = l, scale = 1, noise_obs = noise_obs,
-                   noise_X = sqrt(noise_obs), noise_U = 0.1,
+                   noise_X = sqrt(noise_obs), noise_U = 0.2,
                    noise_wiener_X = noise_wiener_X, 
                    noise_wiener_U = noise_wiener_U,
                    pop = pop,
@@ -269,12 +283,19 @@ processed_data <- process_data(inference_results = inference_results,
 U_plot <- processed_data$U_plot
 X_plot <- processed_data$X_plot
 R_plot <- processed_data$R_plot
+cond_plot <- processed_data$cond_plot
 
 # Plot compartment counts inferred from real data
 (compartments <- 
     plot_compartments_real(
       obs = obs_to_use, 
       X_plot = X_plot))
+
+# Plot all but S compartment counts inferred from real data
+(compartments_except_S <- 
+  plot_compartments_except_S_real(
+    obs = obs_to_use, 
+    X_plot = X_plot))
 
 # Plot compartment counts separately
 plots_sep <- 
@@ -305,6 +326,17 @@ invisible(grid_plots_sep <- grid.arrange(
       recovery_rate = gamma, 
       fatality_rate = eta, 
       lengthscale = l))
+
+# Plot condition numbers of the innovation covariances 
+# and covariance matrices
+cond_plots <- 
+    plot_condition_numbers(cond_plot)
+
+number_plots <- length(cond_plots)
+invisible(condition_numbers <- grid.arrange(
+    grobs = cond_plots,
+    ncol = 2,
+    nrow = ceiling(number_plots/2)))
 ```
 
 
@@ -312,9 +344,12 @@ invisible(grid_plots_sep <- grid.arrange(
 
 
 
+
+#-------------------------------------------------------------------------------
+
 ## Test B
 
-Data from BE.
+Data from BE, 100 days.
 
 #### Import data
 
@@ -364,13 +399,13 @@ if (model == 'SEIRD') {
   eta <- 0
 }
 
-noise_obs <- 100 # noise of observations
-l <- 5 # lengthscale
+noise_obs <- 50 # noise of observations
+l <- 10 # lengthscale
 noise_wiener_X <- 1 # noise of the Wiener process associated with X
-noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
+noise_wiener_U <- 0.1 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
-jit <- 1 # value for jitter on innovation covariance
+jit <- 0.1 # value for jitter on innovation covariance
 
 # Initialize
 initial_params <-
@@ -378,7 +413,7 @@ initial_params <-
                    beta0 = beta0, beta0prime = beta0prime,
                    lambda = lambda, gamma = gamma, eta = eta,
                    l = l, scale = 1, noise_obs = noise_obs,
-                   noise_X = sqrt(noise_obs), noise_U = 0.1,
+                   noise_X = sqrt(noise_obs), noise_U = 0.2,
                    noise_wiener_X = noise_wiener_X, 
                    noise_wiener_U = noise_wiener_U,
                    pop = pop,
@@ -407,12 +442,19 @@ processed_data <- process_data(inference_results = inference_results,
 U_plot <- processed_data$U_plot
 X_plot <- processed_data$X_plot
 R_plot <- processed_data$R_plot
+cond_plot <- processed_data$cond_plot
 
 # Plot compartment counts inferred from real data
 (compartments <- 
     plot_compartments_real(
       obs = obs_to_use, 
       X_plot = X_plot))
+
+# Plot all but S compartment counts inferred from real data
+(compartments_except_S <- 
+  plot_compartments_except_S_real(
+    obs = obs_to_use, 
+    X_plot = X_plot))
 
 # Plot compartment counts separately
 plots_sep <- 
@@ -443,8 +485,22 @@ invisible(grid_plots_sep <- grid.arrange(
       recovery_rate = gamma, 
       fatality_rate = eta, 
       lengthscale = l))
+
+# Plot condition numbers of the innovation covariances 
+# and covariance matrices
+cond_plots <- 
+    plot_condition_numbers(cond_plot)
+
+number_plots <- length(cond_plots)
+invisible(condition_numbers <- grid.arrange(
+    grobs = cond_plots,
+    ncol = 2,
+    nrow = ceiling(number_plots/2)))
 ```
 
+
+
+#-------------------------------------------------------------------------------
 
 ## Test C
 
@@ -498,15 +554,13 @@ if (model == 'SEIRD') {
   eta <- 0
 }
 
-noise_obs <- 100 # noise of observations
-l <- 50 # lengthscale
-noise_wiener_X <- 1 # noise of the Wiener process associated with X
-noise_wiener_U <- 0.081 # noise of the Wiener process associated with U
+noise_obs <- 50 # noise of observations
+l <- 5 # lengthscale
+noise_wiener_X <- 0.001 # noise of the Wiener process associated with X
+noise_wiener_U <- 0.1 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
-jit <- 50 # value for jitter on innovation covariance
-jit_X <- 10
-jit_U <- 1
+jit <- 10 # value for jitter on innovation covariance
 
 # Initialize
 initial_params <-
@@ -514,7 +568,7 @@ initial_params <-
                    beta0 = beta0, beta0prime = beta0prime,
                    lambda = lambda, gamma = gamma, eta = eta,
                    l = l, scale = 1, noise_obs = noise_obs,
-                   noise_X = sqrt(noise_obs), noise_U = 0.1,
+                   noise_X = sqrt(noise_obs), noise_U = 0.2,
                    noise_wiener_X = noise_wiener_X, 
                    noise_wiener_U = noise_wiener_U,
                    pop = pop,
@@ -530,7 +584,6 @@ inference_results <- inference(model = model,
                                grids = grids, 
                                obs = obs_to_use, 
                                jit = jit, 
-                               jit_X = jit_X, jit_U = jit_U,
                                initial_params = initial_params)
 
 # Process data for scoring and visualization
@@ -544,12 +597,19 @@ processed_data <- process_data(inference_results = inference_results,
 U_plot <- processed_data$U_plot
 X_plot <- processed_data$X_plot
 R_plot <- processed_data$R_plot
+cond_plot <- processed_data$cond_plot
 
 # Plot compartment counts inferred from real data
 (compartments <- 
     plot_compartments_real(
       obs = obs_to_use, 
       X_plot = X_plot))
+
+# Plot all but S compartment counts inferred from real data
+(compartments_except_S <- 
+  plot_compartments_except_S_real(
+    obs = obs_to_use, 
+    X_plot = X_plot))
 
 # Plot compartment counts separately
 plots_sep <- 
@@ -580,7 +640,19 @@ invisible(grid_plots_sep <- grid.arrange(
       recovery_rate = gamma, 
       fatality_rate = eta, 
       lengthscale = l))
+
+# Plot condition numbers of the innovation covariances 
+# and covariance matrices
+cond_plots <- 
+    plot_condition_numbers(cond_plot)
+
+number_plots <- length(cond_plots)
+invisible(condition_numbers <- grid.arrange(
+    grobs = cond_plots,
+    ncol = 2,
+    nrow = ceiling(number_plots/2)))
 ```
+
 
 
 #-------------------------------------------------------------------------------
@@ -595,22 +667,28 @@ invisible(grid_plots_sep <- grid.arrange(
 # Every argument except directory is optional. If not available: set NULL.
 
 directory_save <- '~/Documents/GitHub/proboder/Results/'
+folder_name <- 'testC'
+plot_width = 10
+plot_height = 6
+
 if (TRUE) { # Set TRUE to save
   save_processed_data(
     directory = directory_save,
-    folder_name = 'testB',
+    folder_name = folder_name,
     # Data
     inference_results = inference_results, 
     processed_data = processed_data, 
     # Plots
     real_compartments = real_compartments, 
     compartments = compartments,
+    compartments_except_S = compartments_except_S,
     transmission_rate_with_CI = transmission_rate_with_CI,
     reproduction_number_with_CI = reproduction_number_with_CI,
+    condition_numbers = condition_numbers,
     grid_plots_sep = grid_plots_sep,
     # Size
-    plot_width = 8,
-    plot_height = 6)
+    plot_width = plot_width,
+    plot_height = plot_height)
 }
 
 # To store a table as a png file, use the manual export option from the viewer.

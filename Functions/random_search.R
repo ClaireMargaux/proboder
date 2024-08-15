@@ -337,9 +337,9 @@ plot_scores <- function(results_summary,
 find_best_hyperparameters <- function(results_summary) {
   
   # Find the best set of hyperparameters for each score (mean)
-  best_spe <- results_summary[which.min(results_summary$mean_SPE), ]
-  best_nlpd <- results_summary[which.min(results_summary$mean_NLPD), ]
-  best_crps <- results_summary[which.min(results_summary$mean_CRPS), ]
+  best_spe_mean <- results_summary[which.min(results_summary$mean_SPE), ]
+  best_nlpd_mean <- results_summary[which.min(results_summary$mean_NLPD), ]
+  best_crps_mean <- results_summary[which.min(results_summary$mean_CRPS), ]
   
   # Check if there is a set minimizing all three mean scores
   best_all_mean <- results_summary %>%
@@ -364,6 +364,11 @@ find_best_hyperparameters <- function(results_summary) {
     }
   }
   
+  # Find the best set of hyperparameters for each score (median)
+  best_spe_median <- results_summary[which.min(results_summary$median_SPE), ]
+  best_nlpd_median <- results_summary[which.min(results_summary$median_NLPD), ]
+  best_crps_median <- results_summary[which.min(results_summary$median_CRPS), ]
+  
   # Check if there is a set minimizing all three median scores
   best_all_median <- results_summary %>%
     filter(median_SPE == min(median_SPE) & median_NLPD == min(median_NLPD) & median_CRPS == min(median_CRPS))
@@ -387,29 +392,27 @@ find_best_hyperparameters <- function(results_summary) {
     }
   }
   
-  # Add Type column for each result to ensure rbind consistency
-  best_spe$Type <- "Best SPE (Mean)"
-  best_nlpd$Type <- "Best NLPD (Mean)"
-  best_crps$Type <- "Best CRPS (Mean)"
-  best_params_mean$Type <- "Best All (Mean)"
-  best_spe_median <- best_spe
-  best_nlpd_median <- best_nlpd
-  best_crps_median <- best_crps
-  best_spe_median$Type <- "Best SPE (Median)"
-  best_nlpd_median$Type <- "Best NLPD (Median)"
-  best_crps_median$Type <- "Best CRPS (Median)"
-  best_params_median$Type <- "Best All (Median)"
+  # Extract only parameter columns from results_summary
+  param_cols <- c("l", "noise_wiener_X", "noise_wiener_U", "beta0prime", "jit")
   
-  # Combine results into a single data frame
+  # Function to create parameter rows
+  create_param_row <- function(type_label, params) {
+    params$Type <- type_label
+    params <- params %>%
+      select(Type, all_of(param_cols))  # Select only parameter columns
+    return(params)
+  }
+  
+  # Combine results into a single data frame with specific order
   combined_results <- rbind(
-    best_spe,
-    best_nlpd,
-    best_crps,
-    best_params_mean,
-    best_spe_median,
-    best_nlpd_median,
-    best_crps_median,
-    best_params_median
+    create_param_row("Best SPE (Mean)", best_spe_mean),
+    create_param_row("Best NLPD (Mean)", best_nlpd_mean),
+    create_param_row("Best CRPS (Mean)", best_crps_mean),
+    create_param_row("Best All (Mean)", best_params_mean),
+    create_param_row("Best SPE (Median)", best_spe_median),
+    create_param_row("Best NLPD (Median)", best_nlpd_median),
+    create_param_row("Best CRPS (Median)", best_crps_median),
+    create_param_row("Best All (Median)", best_params_median)
   )
   
   # Reorder columns to have 'Type' as the first column
@@ -418,9 +421,10 @@ find_best_hyperparameters <- function(results_summary) {
   
   # Generate table using knitr and kableExtra
   best_params_table <- kable(combined_results, align = "c", 
-                             caption = "Best hyperparameters for each score (mean and median)") %>%
+                             caption = "Best Hyperparameters for Each Score (Mean and Median)") %>%
     kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
-                  full_width = FALSE)
+                  full_width = FALSE) %>%
+    column_spec(1, bold = TRUE) 
   
   return(best_params_table)
 }

@@ -178,7 +178,7 @@ create_directory <- function(base_directory, folder_name = NULL) {
 #' @param transmission_rate_with_CI ggplot object, plot of the inferred contact rate with 95% confidence interval.
 #' @param reproduction_number_with_CI ggplot object, plot of the inferred reproduction number with approx. 95% confidence interval.
 #' @param grid_plots_sep Grid of ggplot objects arranged using grid.arrange, plots of the inferred compartment counts separately.
-#' @param styled_table knitr_kable of the mean scores.
+#' @param scores_table knitr_kable of the mean scores.
 #' @param plot_width Width of the saved plots.
 #' @param plot_height Height of the saved plots.
 #' @return NULL
@@ -200,7 +200,7 @@ save_processed_data <- function(directory,
                                 reproduction_number_with_CI = NULL,
                                 grid_plots_sep = NULL,
                                 condition_numbers = NULL,
-                                styled_table = NULL,
+                                scores_table = NULL,
                                 # Random search
                                 grid_of_mean_plots = NULL,
                                 grid_of_median_plots = NULL,
@@ -324,9 +324,9 @@ save_processed_data <- function(directory,
            width = plot_width,
            height = plot_height)
   }
-  if (!is.null(styled_table)) {
+  if (!is.null(scores_table)) {
     file_path_html <- file.path(new_directory, "scoring_results.html")
-    save_kable(styled_table, file = file_path_html, type = "html")
+    save_kable(scores_table, file = file_path_html, type = "html")
   }
   if (!is.null(grid_of_mean_plots)) {
     ggsave(filename = file.path(new_directory, "grid_of_mean_plots.png"),

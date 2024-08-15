@@ -56,27 +56,39 @@ continuous_ranked_probability_score <- function(U_plot, real_beta_df){
 #' 
 #' @param U_plot Data frame or matrix containing the predicted values.
 #' @param df_beta Data frame or matrix containing the true values for comparison.
-#' @return A styled table displaying Mean Squared Prediction Error (SPE), Mean Negative Log Predictive Density (NLPD), and Mean Continuous Ranked Probability Score (CRPS).
+#' @return A styled table displaying mean and median
+#' - Squared Prediction Error (SPE),
+#' - Continuous Ranked Probability Score (CRPS), and
+#' - Negative Log Predictive Density (NLPD)
 #' @export
 compute_scores_and_table <- function(U_plot, df_beta) {
   # Compute the different scores
-  SPE <- mean(squared_prediction_error(U_plot, df_beta))
-  NLPD <- mean(negative_log_predictive_density(U_plot, df_beta))
-  CRPS <- mean(continuous_ranked_probability_score(U_plot, df_beta))
+  mean_SPE <- mean(squared_prediction_error(U_plot, df_beta))
+  mean_CRPS <- mean(continuous_ranked_probability_score(U_plot, df_beta))
+  mean_NLPD <- mean(negative_log_predictive_density(U_plot, df_beta))
+  
+  med_SPE <- median(squared_prediction_error(U_plot, df_beta))
+  med_CRPS <- median(continuous_ranked_probability_score(U_plot, df_beta))
+  med_NLPD <- median(negative_log_predictive_density(U_plot, df_beta))
   
   # Create a data frame with the results
   results <- data.frame(
-    Method = c("Mean Squared Prediction Error", 
-               "Mean Negative Log Predictive Density", 
-               "Mean Continuous Ranked Probability Score"),
-    Value = c(SPE, NLPD, CRPS)
+    Metric = c("Mean Squared Prediction Error", 
+               "Median Squared Prediction Error",
+               "Mean Continuous Ranked Probability Score",
+               "Median Continuous Ranked Probability Score",
+               "Mean Negative Log Predictive Density",
+               "Median Negative Log Predictive Density"),
+    Value = c(mean_SPE, med_SPE, 
+              mean_CRPS, med_CRPS, 
+              mean_NLPD, med_NLPD)
   )
   
   # Generate nice table using knitr and kableExtra
-  table <- kable(results, align = "c", caption = "Scoring Methods Results")
-  styled_table <- kableExtra::kable_styling(table, 
+  table <- kable(results, align = "l", caption = "Scoring results")
+  scores_table <- kableExtra::kable_styling(table, 
                                             bootstrap_options = c("striped", "hover", "condensed", "responsive"),
                                             full_width = FALSE)
   
-  return(styled_table)
+  return(scores_table)
 }

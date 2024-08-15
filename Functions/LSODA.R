@@ -423,8 +423,8 @@ plotting_simulated_data_lsoda <- function(model, sim,
     geom_line(data = df_beta, aes(x = t, y = beta, color = "Simulated transmission rate"), linetype = "dashed") +
     theme_minimal() +
     labs(x = "Time", 
-         y = TeX("Transmission rate $\\beta(t)$"), 
-         title = TeX("Simulated transmission rate $\\beta(t)$"),
+         y = TeX("Transmission rate $\\beta\\,(t)$"), 
+         title = TeX("Simulated transmission rate $\\beta\\,(t)$"),
          color = "Legend") + 
     scale_color_manual(values = c("Simulated transmission rate" = "#E69F00"),
                        labels = c("Simulated transmission rate"), name = "Line") +
