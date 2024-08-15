@@ -43,7 +43,7 @@ Infer the transmission rate and reproduction number from public health data (cas
 
 Data from the Covid-19 Switzerland Dashboard of the Federal Office of Public Health (FOPH):
 - COVID19Cases_geoRegion_w.csv: Weekly record timelines by geographical region for cases from February 24, 2020, to January 1, 2023.
-− COVID19Cases_geoRegion.csv: Daily record timelines by geographical region for cases from February 24, 2020, to January 1, 2023.
+- COVID19Cases_geoRegion.csv: Daily record timelines by geographical region for cases from February 24, 2020, to January 1, 2023.
  
 ## Algorithm
 
