@@ -2,7 +2,7 @@
 
 ## Author: Claire Descombes
 
-State-space model for joint prediction of contact rate from SIRD model and public health data.
+State-space model for joint prediction of transmission rate and reproduction number from SEIR or SEIRD model and public health data.
 
 ## Table of Contents
 
