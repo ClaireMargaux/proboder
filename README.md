@@ -15,7 +15,6 @@ The algorithm I developed in R is heavily inspired by the article by J. Schmidt,
 - [Data](#data)
 - [Algorithm](#algorithm)
 - [Parameters](#parameters)
-- [Evaluation](#evaluation)
 - [Contributing](#contributing)
 - [License](#license)
 - [Credits](#credits)
@@ -42,6 +41,8 @@ Infer the transmission rate and reproduction number from public health data (cas
 Data from the [Covid-19 Switzerland Dashboard](https://www.covid19.admin.ch/de/epidemiologic/case) of the Federal Office of Public Health (FOPH):
 - COVID19Cases_geoRegion_w.csv: Weekly record timelines by geographical region for cases from February 24, 2020, to January 1, 2023.
 - COVID19Cases_geoRegion.csv: Daily record timelines by geographical region for cases from February 24, 2020, to January 1, 2023.
+
+The raw data as well as the R script used to import and format the data are in the Data folder.
  
 ## Algorithm
 
