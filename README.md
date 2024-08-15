@@ -25,7 +25,7 @@ Installing RStudio: https://posit.co/products/open-source/rstudio/
 
 ## Usage
 
-Infer the contact rate from public health data using a SEIR(D) model. Inference through a state-space model using Gauss-Markov priors and (extended) Kalman filtering for the prediction and update steps.
+Infer the transmission rate and reproduction number from public health data (cases) using a SEIR or SEIRD model. Inference through a state-space model using Gauss-Markov priors and (extended) Kalman filtering for the prediction and update steps.
 
 ## Data
 
@@ -35,12 +35,34 @@ Data from the Covid-19 Switzerland Dashboard of the Federal Office of Public Hea
  
 ## Algorithm
 
-This repository contains an implementation of an (extended) Kalman filter for inference on epidemiological models, specifically SEIRD and SEIR. The algorithm integrates state-space modelling with ordinary differential equations (ODEs) to estimate and predict the dynamics of disease spread based on observed data.
+This repository contains an implementation of an (extended) Kalman filter for inference on epidemiological models, specifically SEIRD and SEIR. The algorithm integrates state-space modelling with ordinary differential equations (ODEs) to estimate and predict the dynamics of disease spread based on observed data. The SSM is based on three distinct steps:
+
+1. Prediction Step
+   - Objective: Forecast the future state of the system.
+   - How: Uses the linear stochastic differential equations (SDEs) to model the system's dynamics and predict how the state will evolve over time. This step treats the system as Gauss-Markov processes.
+
+3. Update on Observations Step
+   - Objective: Refine the predicted state using actual measurement data.
+   - How: Applies the observation model to compare the predicted state with actual observations. The Kalman filter adjusts the state estimate and uncertainty based on the difference between predicted and observed data.
+
+4. Update on ODE Step
+   - Objective: Incorporate the SEIR or SEIRD equations in the system.
+   - How: Utilizes a system of ordinary differential equations (ODEs) to update the state estimate. The ODE solver, integrated with an extended Kalman filter, helps refine the state and uncertainty estimates by enforcing the satisfaction of the ODEs.
 
 ## Parameters
 
-...
-
+- Initial mean and covariance
+- Latency rate (λ)
+- Recovery rate (γ)
+- Mortality rate (η)
+- Drift matrices
+- Dispersion matrices
+- Length scale (ℓ)
+- Observation Noise (R)
+- Noise of the Wiener processes
+- Overall, OBS and ODE time grids
+- Jitter value on innovation covariance (ODE update)
+  
 ## Contributing
 
 Don't hesitate to file issues if you find code bugs.
