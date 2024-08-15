@@ -23,9 +23,7 @@ The algorithm I developed in R is heavily inspired by the article by J. Schmidt,
 
 ## Installation
 
-Installing R: https://cran.r-project.org/
-
-Installing RStudio: https://posit.co/products/open-source/rstudio/
+Install [R](https://cran.r-project.org/), [RStudio](https://posit.co/products/open-source/rstudio/).
 
 The inference is done using the Rmarkdown workflows:
 - workflow_sim_data.Rmd
@@ -49,15 +47,15 @@ Data from the [Covid-19 Switzerland Dashboard](https://www.covid19.admin.ch/de/e
 
 This repository contains an implementation of an (extended) Kalman filter for inference on epidemiological models, specifically SEIRD and SEIR. The algorithm integrates state-space modelling with ordinary differential equations (ODEs) to estimate and predict the dynamics of disease spread based on observed data. The SSM is based on three distinct steps:
 
-1. Prediction Step
+1. **Prediction step**
    - Objective: Forecast the future state of the system.
    - How: Uses the linear stochastic differential equations (SDEs) to model the system's dynamics and predict how the state will evolve over time. This step treats the system as Gauss-Markov processes.
 
-3. Update on Observations Step
+3. **Update on observations step**
    - Objective: Refine the predicted state using actual measurement data.
    - How: Applies the observation model to compare the predicted state with actual observations. The Kalman filter adjusts the state estimate and uncertainty based on the difference between predicted and observed data.
 
-4. Update on ODE Step
+4. **Update on ODE step**
    - Objective: Incorporate the SEIR or SEIRD equations in the system.
    - How: Utilizes a system of ordinary differential equations (ODEs) to update the state estimate. The ODE solver, integrated with an extended Kalman filter, helps refine the state and uncertainty estimates by enforcing the satisfaction of the ODEs.
 
@@ -81,19 +79,15 @@ Don't hesitate to file issues if you find code bugs.
 
 ## License
 
-MIT License
+You can use, copy, modify, and distribute this code for personal, educational, and non-commercial purposes.
 
-Copyright (c)
+**Restrictions**
+- Publications: You may not use this code or any derivative works for publications, including but not limited to academic papers, articles, or books, without obtaining explicit permission from the original author.
+- Attribution: Any use of this code must include proper attribution to the original author.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+**Disclaimer**
+This code is provided "as is" without warranty of any kind, express or implied. The author is not responsible for any damages arising from using this code.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
 
 ## Credits
 
