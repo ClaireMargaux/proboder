@@ -42,7 +42,7 @@ Data from the [Covid-19 Switzerland Dashboard](https://www.covid19.admin.ch/de/e
 - COVID19Cases_geoRegion_w.csv: Weekly record timelines by geographical region for cases from February 24, 2020, to January 1, 2023.
 - COVID19Cases_geoRegion.csv: Daily record timelines by geographical region for cases from February 24, 2020, to January 1, 2023.
 
-The raw data as well as the R script used to import and format the data are in the Data folder.
+The raw data and the R script used to import and format the data are in the Data folder.
  
 ## Algorithm
 
@@ -50,7 +50,7 @@ This repository contains an implementation of an (extended) Kalman filter for in
 
 1. **Prediction step**
    - Objective: Forecast the future state of the system.
-   - How: Uses the linear stochastic differential equations (SDEs) to model the system's dynamics and predict how the state will evolve over time. This step treats the system as Gauss-Markov processes.
+   - How: Uses the linear stochastic differential equations (SDEs) to model the system's dynamics and predict how the state will evolve over time. This step treats the system as a Gauss-Markov process.
 
 3. **Update on observations step**
    - Objective: Refine the predicted state using actual measurement data.
