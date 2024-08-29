@@ -50,38 +50,32 @@ continuous_ranked_probability_score <- function(U_plot, real_beta_df){
   return(CRPS)
 }
 
-#' Compute Scores and Generate Styled Table
+#' Return scores in a table
 #' 
 #' This function computes various scoring metrics based on the input data and returns a styled table using kableExtra.
 #' 
 #' @param U_plot Data frame or matrix containing the predicted values.
 #' @param df_beta Data frame or matrix containing the true values for comparison.
-#' @return A styled table displaying mean and median
+#' @return A list containing a 
+#' - styled table and a
+#' - data frame
+#' displaying mean
 #' - Squared Prediction Error (SPE),
 #' - Continuous Ranked Probability Score (CRPS), and
 #' - Negative Log Predictive Density (NLPD)
 #' @export
 compute_scores_and_table <- function(U_plot, df_beta) {
   # Compute the different scores
-  mean_SPE <- mean(squared_prediction_error(U_plot, df_beta))
   mean_CRPS <- mean(continuous_ranked_probability_score(U_plot, df_beta))
   mean_NLPD <- mean(negative_log_predictive_density(U_plot, df_beta))
-  
-  med_SPE <- median(squared_prediction_error(U_plot, df_beta))
-  med_CRPS <- median(continuous_ranked_probability_score(U_plot, df_beta))
-  med_NLPD <- median(negative_log_predictive_density(U_plot, df_beta))
+  mean_SPE <- mean(squared_prediction_error(U_plot, df_beta))
   
   # Create a data frame with the results
   results <- data.frame(
-    Metric = c("Mean Squared Prediction Error", 
-               "Median Squared Prediction Error",
-               "Mean Continuous Ranked Probability Score",
-               "Median Continuous Ranked Probability Score",
-               "Mean Negative Log Predictive Density",
-               "Median Negative Log Predictive Density"),
-    Value = c(mean_SPE, med_SPE, 
-              mean_CRPS, med_CRPS, 
-              mean_NLPD, med_NLPD)
+    Metric = c("Mean CRPS",
+               "Mean NLPD",
+               "Mean SPE"),
+    Value = c(mean_CRPS, mean_NLPD, mean_SPE)
   )
   
   # Generate nice table using knitr and kableExtra
@@ -90,5 +84,8 @@ compute_scores_and_table <- function(U_plot, df_beta) {
                                             bootstrap_options = c("striped", "hover", "condensed", "responsive"),
                                             full_width = FALSE)
   
-  return(scores_table)
+  list_of_scores <- list(scores_table = scores_table,
+                         scores_df = results)
+  
+  return(list_of_scores)
 }

@@ -86,13 +86,13 @@ if (model == 'SEIRD') {
   eta <- 0
 }
 
-noise_obs <- 30 # noise of observations
-l <- 40 # lengthscale
-noise_wiener_X <- 5 # noise of the Wiener process associated with X
-noise_wiener_U <- 0.01 # noise of the Wiener process associated with U
+noise_obs <- 50 # noise of observations
+l <- 5 # lengthscale
+noise_wiener_X <- 1 # noise of the Wiener process associated with X
+noise_wiener_U <- 0.1 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
-jit <- 0.1 # value for jitter on innovation covariance
+jit <- 1e-1 # value for jitter on innovation covariance
 
 # Initialize
 initial_params <-
@@ -241,12 +241,12 @@ if (model == 'SEIRD') {
 }
 
 noise_obs <- 50 # noise of observations
-l <- 10 # lengthscale
+l <- 5 # lengthscale
 noise_wiener_X <- 1 # noise of the Wiener process associated with X
 noise_wiener_U <- 0.01 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
-jit <- 0.1 # value for jitter on innovation covariance
+jit <- 1e-1 # value for jitter on innovation covariance
 
 # Initialize
 initial_params <-
@@ -400,12 +400,12 @@ if (model == 'SEIRD') {
 }
 
 noise_obs <- 50 # noise of observations
-l <- 10 # lengthscale
+l <- 5 # lengthscale
 noise_wiener_X <- 1 # noise of the Wiener process associated with X
 noise_wiener_U <- 0.1 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
-jit <- 0.1 # value for jitter on innovation covariance
+jit <- 1e-1 # value for jitter on innovation covariance
 
 # Initialize
 initial_params <-
@@ -556,11 +556,11 @@ if (model == 'SEIRD') {
 
 noise_obs <- 50 # noise of observations
 l <- 5 # lengthscale
-noise_wiener_X <- 0.001 # noise of the Wiener process associated with X
-noise_wiener_U <- 0.1 # noise of the Wiener process associated with U
+noise_wiener_X <- 0.01 # noise of the Wiener process associated with X
+noise_wiener_U <- 0.01 # noise of the Wiener process associated with U
 beta0 = 0.8 # starting transmission rate
 beta0prime <- 0 # starting 1st derivative of transmission rate
-jit <- 10 # value for jitter on innovation covariance
+jit <- 1e-1 # value for jitter on innovation covariance
 
 # Initialize
 initial_params <-
@@ -654,7 +654,6 @@ invisible(condition_numbers <- grid.arrange(
 ```
 
 
-
 #-------------------------------------------------------------------------------
 
 ## Store data
@@ -664,17 +663,16 @@ invisible(condition_numbers <- grid.arrange(
 # Store results
 # -------------
 
-# Every argument except directory is optional. If not available: set NULL.
+# Every argument except directory is optional. 
 
 directory_save <- '~/Documents/GitHub/proboder/Results/'
-folder_name <- 'testC'
-plot_width = 10
-plot_height = 6
+folder_name <- 'testB'
 
 if (TRUE) { # Set TRUE to save
   save_processed_data(
     directory = directory_save,
     folder_name = folder_name,
+    model = model,
     # Data
     inference_results = inference_results, 
     processed_data = processed_data, 
@@ -685,10 +683,7 @@ if (TRUE) { # Set TRUE to save
     transmission_rate_with_CI = transmission_rate_with_CI,
     reproduction_number_with_CI = reproduction_number_with_CI,
     condition_numbers = condition_numbers,
-    grid_plots_sep = grid_plots_sep,
-    # Size
-    plot_width = plot_width,
-    plot_height = plot_height)
+    grid_plots_sep = grid_plots_sep)
 }
 
 # To store a table as a png file, use the manual export option from the viewer.

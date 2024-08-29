@@ -1,7 +1,7 @@
-#' Perform Random Search for Hyperparameter Optimization
+#' Perform random search for hyperparameter optimization
 #'
 #' This function performs a random search over specified hyperparameter ranges for a given model and returns a summary of the results.
-#' It evaluates the model using different sets of hyperparameters and computes mean and median scores (SPE, NLPD, CRPS) for each set.
+#' It evaluates the model using different sets of hyperparameters and computes mean scores (SPE, NLPD, CRPS) for each set.
 #'
 #' @param model The model to be used for inference ('SEIRD' and 'SEIR' available).
 #' @param obs The observed data.
@@ -12,10 +12,8 @@
 #' @param eta Fatality rate.
 #' @param pop Population size.
 #' @param beta0 Initial contact rate value. 
-#' @param clip_X Clip on the variance of X.
-#' @param clip_U Clip on the variance of U.
-#' @param jit_X Jitter on the variance of X.
-#' @param jit_U Jitter on the variance of U.
+#' @param jit_X Jitter on the variance of X (optional, default 1e-9).
+#' @param jit_U Jitter on the variance of U (optional, default 1e-9).
 #' @param seed Seed for random number generation. Default is 5.
 #' @param num_param_sets Number of parameter sets to sample.
 #' @param seq_l Sequence of values for the `l` hyperparameter. 
@@ -24,12 +22,11 @@
 #' @param seq_beta0prime Sequence of values for the `beta0prime` hyperparameter. 
 #' @param seq_jit Sequence of values for the `jit` hyperparameter. 
 #'
-#' @return A data frame containing the summary of results for each sampled set of hyperparameters. The data frame includes the hyperparameter values, mean and median scores for SPE, NLPD, and CRPS.
+#' @return A data frame containing the summary of results for each sampled set of hyperparameters. The data frame includes the hyperparameter values and mean scores for SPE, NLPD, and CRPS.
 #' @export
 run_random_search <- function(model, obs_to_use, df_beta, noise_obs, 
                               lambda, gamma, eta, pop, beta0,
-                              clip_X, clip_U,
-                              jit_X, jit_U,
+                              jit_X = 1e-9, jit_U = 1e-9,
                               seed = 5, 
                               num_param_sets, 
                               seq_l, 
@@ -88,7 +85,7 @@ run_random_search <- function(model, obs_to_use, df_beta, noise_obs,
       scale = 1, 
       noise_obs = noise_obs,
       noise_X = sqrt(noise_obs), 
-      noise_U = 0.01,
+      noise_U = 0.2,
       noise_wiener_X = param_i$noise_wiener_X, 
       noise_wiener_U = param_i$noise_wiener_U,
       pop = pop, 
@@ -101,8 +98,7 @@ run_random_search <- function(model, obs_to_use, df_beta, noise_obs,
                 grids = grids, 
                 obs = obs_to_use, 
                 jit = param_i$jit,
-                jit_X = jit_X,
-                jit_U = jit_U,
+                jit_X = jit_X, jit_U = jit_U,
                 initial_params = initial_params)
     },
     warning = function(w) {
@@ -130,9 +126,9 @@ run_random_search <- function(model, obs_to_use, df_beta, noise_obs,
       U_plot <- processed_data$U_plot
       
       # Compute the different scores
-      score_SPE <- squared_prediction_error(U_plot, df_beta)
-      score_NLPD <- negative_log_predictive_density(U_plot, df_beta)
       score_CRPS <- continuous_ranked_probability_score(U_plot, df_beta)
+      score_NLPD <- negative_log_predictive_density(U_plot, df_beta)
+      score_SPE <- squared_prediction_error(U_plot, df_beta)
       
       # Store results (during grid search)
       results_grid_search[i, ] <- c(param_i$l, param_i$noise_wiener_X, param_i$noise_wiener_U, param_i$beta0prime, param_i$jit, param_i$clip_X, param_i$clip_U, score_SPE, score_NLPD, score_CRPS)
@@ -158,14 +154,9 @@ run_random_search <- function(model, obs_to_use, df_beta, noise_obs,
   CRPS_scores <- results_grid_search[, (num_params + 2 * num_predictions + 1):(num_params + 3 * num_predictions)]
   
   # Calculate the mean and median for each score
-  mean_SPE <- rowMeans(SPE_scores)
-  median_SPE <- apply(SPE_scores, 1, median)
-  
-  mean_NLPD <- rowMeans(NLPD_scores)
-  median_NLPD <- apply(NLPD_scores, 1, median)
-  
   mean_CRPS <- rowMeans(CRPS_scores)
-  median_CRPS <- apply(CRPS_scores, 1, median)
+  mean_NLPD <- rowMeans(NLPD_scores)
+  mean_SPE <- rowMeans(SPE_scores)
   
   # Combine into a new data frame
   results_summary <- data.frame(
@@ -174,12 +165,9 @@ run_random_search <- function(model, obs_to_use, df_beta, noise_obs,
     noise_wiener_U = params[, 3],
     beta0prime = params[, 4],
     jit = params[, 5],
-    mean_SPE = mean_SPE,
-    median_SPE = median_SPE,
-    mean_NLPD = mean_NLPD,
-    median_NLPD = median_NLPD,
     mean_CRPS = mean_CRPS,
-    median_CRPS = median_CRPS
+    mean_NLPD = mean_NLPD,
+    mean_SPE = mean_SPE
   )
 
   # Total computation time
@@ -188,23 +176,22 @@ run_random_search <- function(model, obs_to_use, df_beta, noise_obs,
   return(results_summary)
 }
 
-#' Plot Mean and Median Scores for Hyperparameter Search
+#' Plot mean scores for hyperparameter search
 #'
-#' This function generates and returns ggplot objects for visualizing the mean and median scores
+#' This function generates and returns ggplot objects for visualizing the mean scores
 #' (SPE, NLPD, CRPS) across different hyperparameters. The function can optionally aggregate scores
 #' for each hyperparameter value or plot raw scores with NA values removed.
 #'
 #' @param results_summary A data frame containing the summary of results from the hyperparameter search.
-#' Each row represents a different set of hyperparameters and contains columns for the mean and median
-#' scores (`mean_SPE`, `mean_NLPD`, `mean_CRPS`, `median_SPE`, `median_NLPD`, `median_CRPS`).
-#' @param parameters_to_plot A character vector of parameter names for which the mean and median scores
+#' Each row represents a different set of hyperparameters and contains columns for the mean 
+#' scores (`mean_SPE`, `mean_NLPD`, `mean_CRPS`).
+#' @param parameters_to_plot A character vector of parameter names for which the mean scores
 #' should be plotted. Default is `c('l', 'noise_wiener_X', 'noise_wiener_U', 'beta0prime', 'jit')`.
 #' @param aggregate A logical value indicating whether to aggregate scores by the parameter values.
 #' If `TRUE`, scores are aggregated by taking the mean for each parameter value. If `FALSE`, 
 #' raw scores with NA values removed are plotted. Default is `FALSE`.
-#' @return A list containing two lists: `mean_plots` and `median_plots`. Each list contains ggplot objects
-#' for the specified parameters. The `mean_plots` list contains plots of mean scores, and the `median_plots`
-#' list contains plots of median scores. If `aggregate` is `TRUE`, the plots reflect aggregated scores; 
+#' @return A list `mean_plots` containing ggplots of mean scores.
+#' If `aggregate` is `TRUE`, the plots reflect aggregated scores; 
 #' otherwise, they reflect raw scores with NA values removed.
 #' @export
 plot_scores <- function(results_summary, 
@@ -226,8 +213,11 @@ plot_scores <- function(results_summary,
   names(params_expressions) <- parameters_to_plot
   
   # Define color scale
-  color_scale <- scale_color_manual(values = c("SPE" = "#E69F00", "NLPD" = "#56B4E9", "CRPS" = "#009E73"), 
-                                    name = "Score")
+  color_scale <- scale_color_manual(
+    values = c("SPE" = "#E69F00", 
+               "NLPD" = "#56B4E9", 
+               "CRPS" = "#009E73"),
+             name = "Score")
   
   # Function to aggregate data
   aggregate_data_mean <- function(df, parameter) {
@@ -237,17 +227,6 @@ plot_scores <- function(results_summary,
         mean_SPE = mean(mean_SPE, na.rm = TRUE),
         mean_NLPD = mean(mean_NLPD, na.rm = TRUE),
         mean_CRPS = mean(mean_CRPS, na.rm = TRUE),
-        .groups = 'drop'  # Drop the grouping after summarizing
-      )
-  }
-  
-  aggregate_data_median <- function(df, parameter) {
-    df %>%
-      group_by(across(all_of(parameter))) %>%  # Group by the parameter
-      summarize(
-        median_SPE = median(median_SPE, na.rm = TRUE),
-        median_NLPD = median(median_NLPD, na.rm = TRUE),
-        median_CRPS = median(median_CRPS, na.rm = TRUE),
         .groups = 'drop'  # Drop the grouping after summarizing
       )
   }
@@ -264,7 +243,7 @@ plot_scores <- function(results_summary,
       title_text <- TeX(paste("Mean scores for", params_expressions[parameter]))
     }
     
-    ggplot(aggregated_df, aes_string(x = parameter)) +
+    p <- ggplot(aggregated_df, aes(x = !!sym(parameter))) +
       geom_point(aes(y = mean_SPE, color = "SPE")) +
       geom_point(aes(y = mean_NLPD, color = "NLPD")) +
       geom_point(aes(y = mean_CRPS, color = "CRPS")) +
@@ -274,64 +253,40 @@ plot_scores <- function(results_summary,
            color = "Score") +
       color_scale +  # Use predefined color scale
       theme_minimal()
-  }
-  
-  # Function to plot median scores for a given parameter
-  plot_median_scores <- function(df, parameter, aggregate) {
-    # Aggregate data if needed
-    if (aggregate) {
-      aggregated_df <- aggregate_data_median(df, parameter)
-      title_text <- TeX(paste("Aggregated median scores for", params_expressions[parameter]))
-    } else {
-      aggregated_df <- df %>%
-        filter(!is.na(median_SPE) & !is.na(median_NLPD) & !is.na(median_CRPS))
-      title_text <- TeX(paste("Median scores for", params_expressions[parameter]))
+    
+    # Adjust x-axis scale for non-linear parameters
+    if (parameter %in% c('noise_wiener_X', 'jit')) {
+      p <- p + scale_x_log10()  # Apply log scale to x-axis
     }
     
-    ggplot(aggregated_df, aes_string(x = parameter)) +
-      geom_point(aes(y = median_SPE, color = "SPE")) +
-      geom_point(aes(y = median_NLPD, color = "NLPD")) +
-      geom_point(aes(y = median_CRPS, color = "CRPS")) +
-      labs(title = title_text, 
-           x = TeX(params_expressions[parameter]), 
-           y = "Median score",
-           color = "Score") +
-      color_scale +  # Use predefined color scale
-      theme_minimal()
+    return(p)
   }
   
   # Create a list to store the plots
   plot_list_mean <- list()
-  plot_list_median <- list()
-  
+
   # Generate and store plots for each parameter
   for (param in parameters_to_plot) {
     plot_list_mean[[param]] <- plot_mean_scores(results_summary, param, aggregate)
-    plot_list_median[[param]] <- plot_median_scores(results_summary, param, aggregate)
   }
   
   # Return the lists of plots
-  return(list(mean_plots = plot_list_mean, median_plots = plot_list_median))
+  return(list(mean_plots = plot_list_mean))
 }
 
-#' Find the best set of hyperparameters
+#' Return table with best sets of hyperparameters for each score.
 #'
-#' This function identifies the best set of hyperparameters from a summary of results based on mean and median scores for SPE, NLPD, and CRPS.
-#' It first checks for a set that minimizes all three scores (mean and median), then checks for sets minimizing at least two scores (mean and median),
-#' and finally returns the best sets with respect to individual scores (mean and median) and overall.
-#' If no sets meet the criteria for minimizing two or all three scores, `NA` values are included in the results.
+#' This function returns a table with the best set of hyperparameters for the mean scores for CRPS, NLPD and SPE.
 #'
-#' @param results_summary A data frame containing the summary of results with mean and median scores (SPE, NLPD, CRPS) for each set of hyperparameters.
+#' @param best_parameters A list of a
+#' - kable table, and a
+#' - data frame
+#' containing the summary of results with mean scores (CRPS, NLPD, SPE) for each set of hyperparameters.
 #'
 #' @return A data frame containing the best sets of hyperparameters based on the criteria outlined, including:
 #' \item{Best SPE (Mean)}{The hyperparameters that yield the minimum mean SPE.}
 #' \item{Best NLPD (Mean)}{The hyperparameters that yield the minimum mean NLPD.}
 #' \item{Best CRPS (Mean)}{The hyperparameters that yield the minimum mean CRPS.}
-#' \item{Best All (Mean)}{The hyperparameters that minimize all three or at least two mean scores, or `NA` if no such set exists.}
-#' \item{Best SPE (Median)}{The hyperparameters that yield the minimum median SPE.}
-#' \item{Best NLPD (Median)}{The hyperparameters that yield the minimum median NLPD.}
-#' \item{Best CRPS (Median)}{The hyperparameters that yield the minimum median CRPS.}
-#' \item{Best All (Median)}{The hyperparameters that minimize all three or at least two median scores, or `NA` if no such set exists.}
 #'
 #' @export
 find_best_hyperparameters <- function(results_summary) {
@@ -340,91 +295,164 @@ find_best_hyperparameters <- function(results_summary) {
   best_spe_mean <- results_summary[which.min(results_summary$mean_SPE), ]
   best_nlpd_mean <- results_summary[which.min(results_summary$mean_NLPD), ]
   best_crps_mean <- results_summary[which.min(results_summary$mean_CRPS), ]
-  
-  # Check if there is a set minimizing all three mean scores
-  best_all_mean <- results_summary %>%
-    filter(mean_SPE == min(mean_SPE) & mean_NLPD == min(mean_NLPD) & mean_CRPS == min(mean_CRPS))
-  
-  if (nrow(best_all_mean) > 0) {
-    best_params_mean <- best_all_mean[1, ]
-  } else {
-    # Find sets minimizing at least two of the mean scores
-    best_two_mean <- results_summary %>%
-      filter((mean_SPE == min(mean_SPE) & mean_NLPD == min(mean_NLPD)) |
-               (mean_SPE == min(mean_SPE) & mean_CRPS == min(mean_CRPS)) |
-               (mean_NLPD == min(mean_NLPD) & mean_CRPS == min(mean_CRPS)))
-    
-    if (nrow(best_two_mean) > 0) {
-      best_params_mean <- best_two_mean[1, ]
-    } else {
-      # No best_two found, set to NA
-      best_params_mean <- as.data.frame(matrix(NA, nrow = 1, ncol = ncol(results_summary)))
-      names(best_params_mean) <- names(results_summary)
-      best_params_mean$Type <- "Best All (Mean)"
-    }
-  }
-  
-  # Find the best set of hyperparameters for each score (median)
-  best_spe_median <- results_summary[which.min(results_summary$median_SPE), ]
-  best_nlpd_median <- results_summary[which.min(results_summary$median_NLPD), ]
-  best_crps_median <- results_summary[which.min(results_summary$median_CRPS), ]
-  
-  # Check if there is a set minimizing all three median scores
-  best_all_median <- results_summary %>%
-    filter(median_SPE == min(median_SPE) & median_NLPD == min(median_NLPD) & median_CRPS == min(median_CRPS))
-  
-  if (nrow(best_all_median) > 0) {
-    best_params_median <- best_all_median[1, ]
-  } else {
-    # Find sets minimizing at least two of the median scores
-    best_two_median <- results_summary %>%
-      filter((median_SPE == min(median_SPE) & median_NLPD == min(median_NLPD)) |
-               (median_SPE == min(median_SPE) & median_CRPS == min(median_CRPS)) |
-               (median_NLPD == min(median_NLPD) & median_CRPS == min(median_CRPS)))
-    
-    if (nrow(best_two_median) > 0) {
-      best_params_median <- best_two_median[1, ]
-    } else {
-      # No best_two found, set to NA
-      best_params_median <- as.data.frame(matrix(NA, nrow = 1, ncol = ncol(results_summary)))
-      names(best_params_median) <- names(results_summary)
-      best_params_median$Type <- "Best All (Median)"
-    }
-  }
-  
+
   # Extract only parameter columns from results_summary
   param_cols <- c("l", "noise_wiener_X", "noise_wiener_U", "beta0prime", "jit")
   
   # Function to create parameter rows
   create_param_row <- function(type_label, params) {
-    params$Type <- type_label
+    params$Metric <- type_label
     params <- params %>%
-      select(Type, all_of(param_cols))  # Select only parameter columns
+      select(Metric, all_of(param_cols))  # Select only parameter columns
     return(params)
   }
   
   # Combine results into a single data frame with specific order
   combined_results <- rbind(
-    create_param_row("Best SPE (Mean)", best_spe_mean),
-    create_param_row("Best NLPD (Mean)", best_nlpd_mean),
-    create_param_row("Best CRPS (Mean)", best_crps_mean),
-    create_param_row("Best All (Mean)", best_params_mean),
-    create_param_row("Best SPE (Median)", best_spe_median),
-    create_param_row("Best NLPD (Median)", best_nlpd_median),
-    create_param_row("Best CRPS (Median)", best_crps_median),
-    create_param_row("Best All (Median)", best_params_median)
+    create_param_row("Best mean CRPS", best_crps_mean),
+    create_param_row("Best mean NLPD", best_nlpd_mean),
+    create_param_row("Best mean SPE", best_spe_mean)
   )
   
-  # Reorder columns to have 'Type' as the first column
+  # Reorder columns to have 'Metric' as the first column
   combined_results <- combined_results %>%
-    select(Type, everything())
+    select(Metric, everything())
   
   # Generate table using knitr and kableExtra
   best_params_table <- kable(combined_results, align = "c", 
-                             caption = "Best Hyperparameters for Each Score (Mean and Median)") %>%
+                             caption = "Best hyperparameters for each score") %>%
     kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
                   full_width = FALSE) %>%
     column_spec(1, bold = TRUE) 
   
-  return(best_params_table)
+  best_parameters <- list(best_params_table = best_params_table, 
+                          best_params_df = combined_results)
+  
+  return(best_parameters)
+}
+
+#' Generate and plot scores for the best hyperparameter sets
+#'
+#' This function evaluates three sets of hyperparameters identified as the best based on
+#' their mean Continuous Ranked Probability Score (CRPS), Negative Log Predictive Density (NLPD),
+#' and Standard Prediction Error (SPE) scores. The function runs inference using these hyperparameters,
+#' computes the corresponding scores, and generates plots comparing the CRPS, NLPD, and SPE scores
+#' across the different hyperparameter sets.
+#'
+#' @param best_parameters A list containing the best hyperparameters, generated by the 
+#'        `find_best_hyperparameters` function. This list includes a data frame (`best_params_df`) 
+#'        of the best hyperparameter sets.
+#' @param model The model object used for inference. It contains the structure and parameters of the model.
+#' @param obs_to_use A data frame of observed data used in the inference process.
+#' @param df_beta A data frame containing transmission rate values used in score computation.
+#' @param noise_obs A numeric value representing the observational noise level.
+#' @param lambda, gamma, eta Numeric values representing parameters of the model used in the inference process.
+#' @param pop A numeric value representing the population size used in the model.
+#' @param seed An optional seed value for reproducibility of results.
+#'
+#' @return A list containing two elements:
+#' \describe{
+#'   \item{best_scores_df}{A data frame with the CRPS, NLPD, and SPE scores for each hyperparameter set.}
+#'   \item{best_scores_plot}{A list of three ggplot objects, one for each score (CRPS, NLPD, SPE), comparing 
+#'        the scores across the different hyperparameter sets.}
+#' }
+#'
+#' @details
+#' The function first initializes the model with each set of hyperparameters and runs inference. 
+#' It then processes the data to compute the CRPS, NLPD, and SPE scores. Finally, it creates plots 
+#' for each score type, showing the scores for each hyperparameter set.
+#' 
+#' @export
+scores_of_best_params <- 
+  function(best_parameters, 
+           model, obs_to_use, 
+           df_beta, noise_obs, 
+           lambda, gamma, eta, 
+           pop, 
+           seed) {
+
+  best_params_df <- best_parameters$best_params_df
+  
+  scores_list <- data.frame(matrix(ncol = 4, nrow = 3))
+  colnames(scores_list) <- c('Set chosen','CRPS','NLPD','SPE')
+  
+  for (i in 1:nrow(best_params_df)) {
+    # Extract hyperparameters
+    params <- best_params_df[i, ]
+    
+    # Initialize with the current set of hyperparameters
+    initial_params <- initialization(model = model, obs = obs_to_use,
+                                     beta0 = beta0, beta0prime = params$beta0prime,
+                                     lambda = lambda, gamma = gamma, eta = eta,
+                                     l = params$l, scale = 1, noise_obs = noise_obs,
+                                     noise_X = sqrt(noise_obs), noise_U = 0.2,
+                                     noise_wiener_X = params$noise_wiener_X, 
+                                     noise_wiener_U = params$noise_wiener_U,
+                                     pop = pop,
+                                     start_S = NULL, start_E = NULL, 
+                                     start_I = NULL, start_R = NULL,
+                                     start_D = NULL)
+    
+    # Generate time grids for inference
+    grids <- generate_grid(obs_to_use, num_points_between = 0)
+    
+    # Run inference
+    inference_results <- inference(model = model, 
+                                   grids = grids, 
+                                   obs = obs_to_use, 
+                                   jit = params$jit, 
+                                   initial_params = initial_params)
+    
+    # Process data for scoring
+    processed_data <- process_data(inference_results = inference_results,
+                                   grids = grids,
+                                   model = model,
+                                   pop = pop, 
+                                   lambda = lambda, 
+                                   gamma = gamma, 
+                                   eta = eta)
+    
+    U_plot <- processed_data$U_plot
+
+    # Compute and store scores
+    scores <- compute_scores_and_table(U_plot = U_plot, df_beta = df_beta)[[2]]
+    scores_list[i,1] <- params$Metric
+    scores_list[i,2:4] <- scores$Value
+  }
+  
+  # Create individual plots for CRPS, NLPD, and SPE
+  crps_plot <- ggplot(scores_list, aes(x = `Set chosen`, y = CRPS, color = `Set chosen`)) +
+    geom_point(size = 4) +
+    labs(title = "CRPS scores for different hyperparameter sets",
+         y = "CRPS", x = "Set Chosen") +
+    theme_minimal() +
+    scale_color_manual(values = c("Best mean CRPS" = "#E69F00", 
+                                  "Best mean NLPD" = "#E69F00", 
+                                  "Best mean SPE" = "#E69F00"))
+  
+  nlpd_plot <- ggplot(scores_list, aes(x = `Set chosen`, y = NLPD, color = `Set chosen`)) +
+    geom_point(size = 4) +
+    labs(title = "NLPD scores for different hyperparameter sets",
+         y = "NLPD", x = "Set Chosen") +
+    theme_minimal() +
+    scale_color_manual(values = c("Best mean CRPS" = "#56B4E9", 
+                                  "Best mean NLPD" = "#56B4E9", 
+                                  "Best mean SPE" = "#56B4E9"))
+  
+  spe_plot <- ggplot(scores_list, aes(x = `Set chosen`, y = SPE, color = `Set chosen`)) +
+    geom_point(size = 4) +
+    labs(title = "SPE scores for different hyperparameter sets",
+         y = "SPE", x = "Set Chosen") +
+    theme_minimal() +
+    scale_color_manual(values = c("Best mean CRPS" = "#009E73", 
+                                  "Best mean NLPD" = "#009E73", 
+                                  "Best mean SPE" = "#009E73"))
+  
+  # Combine the three plots into a list
+  combined_plot <- list(crps_plot, nlpd_plot, spe_plot)
+  
+  best_scores_output <- list(best_scores_df = scores_list, 
+                             best_scores_plot = combined_plot)
+  
+  return(best_scores_output)
 }

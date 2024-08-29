@@ -170,21 +170,14 @@ create_directory <- function(base_directory, folder_name = NULL) {
 #' @param folder_name Character string indicating the name of the folder (optional).
 #' @param inference_results List of data frames with the inferred values of X, U, P_X and P_U.
 #' @param processed_data List of data frames containing the processed data for plotting the contact rate.
-#' @param simulated_compartments ggplot object, plot of the simulated compartment counts.
-#' @param simulated_beta ggplot object, plot of the simulated contact rate.
-#' @param simulated_R ggplot object, plot of the simulated reproduction number.
-#' @param real_compartments ggplot object, plot of the observed compartment counts.
-#' @param compartments ggplot object, plot of the inferred compartment counts.
-#' @param transmission_rate_with_CI ggplot object, plot of the inferred contact rate with 95% confidence interval.
-#' @param reproduction_number_with_CI ggplot object, plot of the inferred reproduction number with approx. 95% confidence interval.
-#' @param grid_plots_sep Grid of ggplot objects arranged using grid.arrange, plots of the inferred compartment counts separately.
-#' @param scores_table knitr_kable of the mean scores.
+#' ...
 #' @param plot_width Width of the saved plots.
 #' @param plot_height Height of the saved plots.
 #' @return NULL
 #' @export
 save_processed_data <- function(directory,
                                 folder_name = NULL,
+                                model,
                                 # Data
                                 inference_results = NULL, 
                                 processed_data = NULL, 
@@ -203,11 +196,9 @@ save_processed_data <- function(directory,
                                 scores_table = NULL,
                                 # Random search
                                 grid_of_mean_plots = NULL,
-                                grid_of_median_plots = NULL,
+                                grid_of_mean_plots_agg = NULL,
                                 best_params_table = NULL,
-                                # Size
-                                plot_width = 8,
-                                plot_height = 6) {
+                                best_scores_plot = NULL) {
   
   # Create directory
   if (is.null(folder_name)) {
@@ -239,6 +230,10 @@ save_processed_data <- function(directory,
     save(cond_plot, file = file.path(new_directory, "/cond_plot.Rdata"))
   }
 
+  # Standard plot size
+  plot_width = 10
+  plot_height = 6
+    
   # Save ggplot images
   if (!is.null(simulated_compartments)) {
     ggsave(filename = file.path(new_directory, "simulated_compartments.png"), 
@@ -300,22 +295,31 @@ save_processed_data <- function(directory,
     ggsave(filename = file.path(new_directory, "transmission_rate_with_CI.png"), 
            plot = transmission_rate_with_CI, 
            bg = "white",
-           width = plot_width, 
+           width = 10, 
            height = plot_height)
   }
   if (!is.null(reproduction_number_with_CI)) {
     ggsave(filename = file.path(new_directory, "reproduction_number_with_CI.png"), 
            plot = reproduction_number_with_CI, 
            bg = "white",
-           width = plot_width, 
+           width = 10, 
            height = plot_height)
   }
   if (!is.null(grid_plots_sep)) {
-    ggsave(filename = file.path(new_directory, "grid_plots_sep.png"),
-           plot = grid_plots_sep,
-           bg = "white",
-           width = plot_width,
-           height = plot_height)
+    if(model == 'SEIR'){
+      ggsave(filename = file.path(new_directory, "grid_plots_sep.png"),
+             plot = grid_plots_sep,
+             bg = "white",
+             width = plot_width,
+             height = plot_height)
+    }
+    if(model == 'SEIRD'){
+      ggsave(filename = file.path(new_directory, "grid_plots_sep.png"),
+             plot = grid_plots_sep,
+             bg = "white",
+             width = 8,
+             height = 8)
+    }
   }
   if (!is.null(condition_numbers)) {
     ggsave(filename = file.path(new_directory, "condition_numbers.png"),
@@ -332,19 +336,26 @@ save_processed_data <- function(directory,
     ggsave(filename = file.path(new_directory, "grid_of_mean_plots.png"),
            plot = grid_of_mean_plots,
            bg = "white",
-           width = plot_width,
-           height = plot_height)
+           width = 8,
+           height = 6)
   }
-  if (!is.null(grid_of_median_plots)) {
-    ggsave(filename = file.path(new_directory, "grid_of_median_plots.png"),
-           plot = grid_of_median_plots,
+  if (!is.null(grid_of_mean_plots_agg)) {
+    ggsave(filename = file.path(new_directory, "grid_of_mean_plots_agg.png"),
+           plot = grid_of_mean_plots_agg,
            bg = "white",
-           width = plot_width,
-           height = plot_height)
+           width = 8,
+           height = 6)
   }
   if (!is.null(best_params_table)) {
     file_path_html <- file.path(new_directory, "best_params_table.html")
     save_kable(best_params_table, file = file_path_html, type = "html")
+  }
+  if (!is.null(best_scores_plot)) {
+    ggsave(filename = file.path(new_directory, "best_scores_plot.png"),
+           plot = best_scores_plot,
+           bg = "white",
+           width = 8,
+           height = 10)
   }
 }
 
